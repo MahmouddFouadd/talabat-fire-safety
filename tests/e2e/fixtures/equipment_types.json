@@ -1,0 +1,6 @@
+[{"code":"p6","name_ar":"طفايات بودرة 6 كجم","name_en":"6 kg powder extinguishers","has_quantity":true,"active":true,"sort":1,"updated_at":"2026-11-20T13:19:57.700862+00:00"}, 
+ {"code":"co2","name_ar":"طفايات CO2","name_en":"CO2 extinguishers","has_quantity":true,"active":true,"sort":2,"updated_at":"2026-11-20T13:19:57.700862+00:00"}, 
+ {"code":"fs","name_ar":"معدات Fire Search","name_en":"Fire Search equipment","has_quantity":true,"active":true,"sort":3,"updated_at":"2026-11-20T13:19:57.700862+00:00"}, 
+ {"code":"hc","name_ar":"خزائن خراطيم الحريق","name_en":"Hose cabinets","has_quantity":true,"active":true,"sort":4,"updated_at":"2026-11-20T13:19:57.700862+00:00"}, 
+ {"code":"al","name_ar":"نظام إنذار الحريق","name_en":"Fire alarm system","has_quantity":false,"active":true,"sort":5,"updated_at":"2026-11-20T13:19:57.700862+00:00"}, 
+ {"code":"fp","name_ar":"طرمبة الحريق","name_en":"Fire pump","has_quantity":false,"active":true,"sort":6,"updated_at":"2026-11-20T13:19:57.700862+00:00"}]

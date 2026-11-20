@@ -1,0 +1,4 @@
+[{"id":"716574a7-a41d-48c0-8de4-a7515c5f4ccc","code":"Zone 1","name_ar":"المنطقة 1","name_en":"Zone 1","sort":1,"active":true,"created_at":"2026-11-20T13:19:57.700862+00:00","updated_at":"2026-11-20T13:19:57.700862+00:00"}, 
+ {"id":"59bd0a55-1cfb-474e-beec-09c16192a227","code":"Zone 2","name_ar":"المنطقة 2","name_en":"Zone 2","sort":2,"active":true,"created_at":"2026-11-20T13:19:57.700862+00:00","updated_at":"2026-11-20T13:19:57.700862+00:00"}, 
+ {"id":"304895a9-a313-4107-b04e-2e75eb618406","code":"Zone 3","name_ar":"المنطقة 3","name_en":"Zone 3","sort":3,"active":true,"created_at":"2026-11-20T13:19:57.700862+00:00","updated_at":"2026-11-20T13:19:57.700862+00:00"}, 
+ {"id":"f5b13008-68a2-4ef5-a2dc-c0557bec20a4","code":"Zone 4","name_ar":"المنطقة 4","name_en":"Zone 4","sort":4,"active":true,"created_at":"2026-11-20T13:19:57.700862+00:00","updated_at":"2026-11-20T13:19:57.700862+00:00"}]

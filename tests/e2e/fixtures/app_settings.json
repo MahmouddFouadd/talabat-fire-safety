@@ -1,0 +1,8 @@
+[{"key":"app_name_ar","value":"إدارة السلامة من الحريق","updated_by":null,"updated_at":"2026-11-20T13:19:57.700862+00:00"}, 
+ {"key":"app_name_en","value":"Fire Safety Management","updated_by":null,"updated_at":"2026-11-20T13:19:57.700862+00:00"}, 
+ {"key":"login_message_ar","value":"سجّل دخولك باسم المستخدم وكلمة المرور","updated_by":null,"updated_at":"2026-11-20T13:19:57.700862+00:00"}, 
+ {"key":"login_message_en","value":"Sign in with your username and password","updated_by":null,"updated_at":"2026-11-20T13:19:57.700862+00:00"}, 
+ {"key":"overdue_days","value":7,"updated_by":null,"updated_at":"2026-11-20T13:19:57.700862+00:00"}, 
+ {"key":"require_remarks_on_issue","value":false,"updated_by":null,"updated_at":"2026-11-20T13:19:57.700862+00:00"}, 
+ {"key":"session_idle_minutes","value":480,"updated_by":null,"updated_at":"2026-11-20T13:19:57.700862+00:00"}, 
+ {"key":"week_deadline_dow","value":6,"updated_by":null,"updated_at":"2026-11-20T13:19:57.700862+00:00"}]

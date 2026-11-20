@@ -1,0 +1,25 @@
+name: Deploy database & functions (manual)
+on:
+  workflow_dispatch:
+    inputs:
+      confirm:
+        description: 'Type DEPLOY to apply migrations to the production Supabase project'
+        required: true
+permissions: { contents: read }
+jobs:
+  deploy:
+    if: ${{ inputs.confirm == 'DEPLOY' }}
+    runs-on: ubuntu-latest
+    env:
+      SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+      SUPABASE_DB_PASSWORD: ${{ secrets.SUPABASE_DB_PASSWORD }}
+      PROJECT_REF: ${{ vars.SUPABASE_PROJECT_REF || 'pwijwlcqtjoaqxjnygwh' }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: supabase/setup-cli@v1
+        with: { version: 2.0.0 }
+      - run: supabase link --project-ref "$PROJECT_REF" -p "$SUPABASE_DB_PASSWORD"
+      - name: Show pending migrations
+        run: supabase migration list -p "$SUPABASE_DB_PASSWORD"
+      - run: supabase db push -p "$SUPABASE_DB_PASSWORD"
+      - run: supabase functions deploy admin-users --project-ref "$PROJECT_REF"

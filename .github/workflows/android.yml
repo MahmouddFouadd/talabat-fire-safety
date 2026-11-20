@@ -1,0 +1,54 @@
+name: Android APK
+on:
+  workflow_dispatch:
+  push:
+    tags: ["v*"]
+permissions: { contents: write }
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    env:
+      VERSION_NAME: ${{ github.ref_type == 'tag' && github.ref_name || '1.0.0' }}
+      VERSION_CODE: ${{ github.run_number }}
+      HAS_KEYSTORE: ${{ secrets.ANDROID_KEYSTORE_BASE64 != '' }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: 20, cache: npm }
+      - uses: actions/setup-java@v4
+        with: { distribution: temurin, java-version: 17 }
+      - uses: android-actions/setup-android@v3
+      - run: npm ci
+      - run: npm run build
+      - run: npx cap sync android
+      - name: Debug APK (always — installable for testing)
+        working-directory: android
+        run: chmod +x gradlew && ./gradlew --no-daemon assembleDebug
+      - name: Release APK + AAB (only when signing secrets exist)
+        if: ${{ env.HAS_KEYSTORE == 'true' }}
+        env:
+          ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+          ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
+        working-directory: android
+        run: |
+          echo "${{ secrets.ANDROID_KEYSTORE_BASE64 }}" | base64 -d > "$RUNNER_TEMP/release.keystore"
+          export ANDROID_KEYSTORE_PATH="$RUNNER_TEMP/release.keystore"
+          ./gradlew --no-daemon assembleRelease bundleRelease
+          rm -f "$RUNNER_TEMP/release.keystore"
+      - name: Verify and collect artifacts
+        run: |
+          mkdir -p out
+          cp android/app/build/outputs/apk/debug/app-debug.apk "out/FireSafety-${VERSION_NAME}-debug.apk"
+          cp android/app/build/outputs/apk/release/app-release.apk "out/FireSafety-${VERSION_NAME}.apk" 2>/dev/null || true
+          cp android/app/build/outputs/bundle/release/app-release.aab "out/FireSafety-${VERSION_NAME}.aab" 2>/dev/null || true
+          ls -la out && unzip -l out/*debug.apk | grep -q AndroidManifest.xml && echo "APK structure verified"
+          sha256sum out/* | tee out/SHA256SUMS.txt
+      - uses: actions/upload-artifact@v4
+        with:
+          name: android-${{ env.VERSION_NAME }}
+          path: out/
+      - name: Attach to GitHub Release (tags only)
+        if: github.ref_type == 'tag'
+        uses: softprops/action-gh-release@v2
+        with: { files: "out/*" }

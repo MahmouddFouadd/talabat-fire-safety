@@ -1,0 +1,2 @@
+[{"id":1,"issue_id":"0c7d1b27-420d-45e6-8366-17f2cdbc3480","from_status":"open","to_status":"assigned","note":null,"actor_id":"b0363663-9676-4595-a92e-4696139c524a","at":"2026-11-20T13:19:57.777985+00:00"}, 
+ {"id":2,"issue_id":"0c7d1b27-420d-45e6-8366-17f2cdbc3480","from_status":"assigned","to_status":"resolved","note":"Battery replaced","actor_id":"b0363663-9676-4595-a92e-4696139c524a","at":"2026-11-20T13:19:57.780543+00:00"}]
