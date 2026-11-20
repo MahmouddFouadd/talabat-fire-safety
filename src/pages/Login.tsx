@@ -20,7 +20,8 @@ export default function Login() {
     setBusy(true); setErr("");
     try {
       const r = await signIn(u, p);
-      if (r !== "ok") setErr(t(r === "rate" ? "tooMany" : r === "nostaff" ? "noStaff" : "badLogin"));
+      if (r.startsWith("db:")) setErr(`${t("errorGeneric")} (${r.slice(3)})`);
+      else if (r !== "ok") setErr(t(r === "rate" ? "tooMany" : r === "nostaff" ? "noStaff" : "badLogin"));
     } catch { setErr(t("errorGeneric")); }
     setBusy(false);
   }

@@ -10,7 +10,7 @@ interface AuthState {
   loading: boolean;
   mustChangePassword: boolean;
   idleExpired: boolean;
-  signIn: (username: string, password: string) => Promise<"ok" | "bad" | "rate" | "nostaff">;
+  signIn: (username: string, password: string) => Promise<"ok" | "bad" | "rate" | "nostaff" | `db:${string}`>;
   signOut: () => Promise<void>;
   changePassword: (pw: string) => Promise<boolean>;
 }
@@ -19,8 +19,10 @@ const Ctx = createContext<AuthState | null>(null);
 
 export const toEmail = (username: string) => `${username.trim().toLowerCase()}@${LOGIN_DOMAIN}`;
 
+let lastStaffError = "";
 async function loadStaff(uid: string): Promise<Staff | null> {
-  const { data } = await supabase.from("staff").select("*").eq("auth_user_id", uid).eq("active", true).maybeSingle();
+  const { data, error } = await supabase.from("staff").select("*").eq("auth_user_id", uid).eq("active", true).maybeSingle();
+  lastStaffError = error ? `${error.code ?? ""} ${error.message ?? ""}`.trim() : "";
   return (data as Staff) ?? null;
 }
 
@@ -77,7 +79,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const { data, error } = await supabase.auth.signInWithPassword({ email: toEmail(username), password });
     if (error) return error.status === 429 ? "rate" : "bad";
     const s = await loadStaff(data.user.id);
-    if (!s) { await supabase.auth.signOut(); return "nostaff"; }
+    if (!s) { const e = lastStaffError; await supabase.auth.signOut(); return e ? `db:${e}` : "nostaff"; }
     setStaff(s);
     localStorage.setItem("fs-last-activity", String(Date.now()));
     return "ok";
