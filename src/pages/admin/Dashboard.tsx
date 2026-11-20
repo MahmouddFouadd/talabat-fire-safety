@@ -4,9 +4,9 @@ import { Shell } from "../../components/Shell";
 import { ErrorBox, Kpi, Loading } from "../../components/ui";
 import { useDashboard, useStoreStatus, useZones } from "../../lib/api";
 import { useI18n, type TKey } from "../../lib/i18n";
-import type { StoreStatus } from "../../lib/types";
+import type { StoreStatus, StoreStatusRow, Zone } from "../../lib/types";
 
-const ORDER: StoreStatus[] = ["ok", "issues", "pending", "overdue", "never"];
+const ORDER: StoreStatus[] = ["overdue", "never", "pending", "issues", "ok"];
 
 export default function Dashboard() {
   const { t, nf, df, lang } = useI18n();
@@ -104,17 +104,57 @@ export default function Dashboard() {
         </div>
       </section>
 
-      <section className="card glass" style={{ marginTop: 16 }}>
-        <h3 className="ttl">{t("storeMap")}</h3>
-        <div className="legend">{ORDER.map((k) => <span key={k}><i className={`dot d-${k}`} />{t(`st_${k}` as TKey)} {nf(bs(k))}</span>)}</div>
-        <div className="tiles">
-          {tiles.map((x) => (
-            <button key={x.store_code} className={`tile ${x.status}`} onClick={() => nav(`/admin/stores?q=${encodeURIComponent(x.store_code)}`)} title={x.name}>
-              <b>{x.name}</b><span className="num">{x.store_code}{x.last_date ? ` · ${df(x.last_date)}` : ""}</span>
+      <StoreMap stores={tiles} zones={zones.data ?? []} />
+    </Shell>
+  );
+}
+
+/* Store map: one compact dot per store, grouped by zone, plus a filter that lists the stores behind a colour. */
+function StoreMap({ stores, zones }: { stores: StoreStatusRow[]; zones: Zone[] }) {
+  const { t, nf, df, lang } = useI18n();
+  const nav = useNavigate();
+  const [f, setF] = useState<StoreStatus | "">("");
+  const count = (k: StoreStatus) => stores.filter((x) => x.status === k).length;
+  const groups = zones.map((z) => ({ z, list: stores.filter((x) => x.zone_id === z.id).sort((a, b) => ORDER.indexOf(a.status) - ORDER.indexOf(b.status)) })).filter((g) => g.list.length);
+  const picked = f ? stores.filter((x) => x.status === f) : [];
+  return (
+    <section className="card glass" style={{ marginTop: 16 }}>
+      <h3 className="ttl">{t("storeMap")}<small>{nf(stores.length)} {t("stores")}</small></h3>
+      <div className="segpills" role="group" aria-label={t("status")} style={{ marginBottom: 14 }}>
+        <button aria-pressed={f === ""} onClick={() => setF("")}>{t("allStores")} <b className="num">{nf(stores.length)}</b></button>
+        {ORDER.map((k) => (
+          <button key={k} aria-pressed={f === k} onClick={() => setF(f === k ? "" : k)}><i className={`dot d-${k}`} />{t(`st_${k}` as TKey)} <b className="num">{nf(count(k))}</b></button>
+        ))}
+      </div>
+      <div className="zonemap">
+        {groups.map(({ z, list }) => {
+          const done = list.filter((x) => x.status === "ok" || x.status === "issues").length;
+          return (
+            <div key={z.id} className="zone-block">
+              <div className="zone-head"><b>{lang === "ar" ? z.name_ar : z.name_en}</b><span className="code num">{nf(done)}/{nf(list.length)}</span></div>
+              <div className="dots">
+                {list.map((x) => (
+                  <button key={x.store_code} className={`sq s-${x.status} ${f && f !== x.status ? "dim" : ""}`} title={`${x.name} · ${x.store_code} · ${t(`st_${x.status}` as TKey)}`}
+                    aria-label={`${x.name} ${t(`st_${x.status}` as TKey)}`} onClick={() => nav(`/admin/stores?q=${encodeURIComponent(x.store_code)}`)} />
+                ))}
+              </div>
+            </div>
+          );
+        })}
+      </div>
+      {f && (
+        <div className="storechips">
+          {picked.length === 0 && <p className="muted">{t("empty")}</p>}
+          {picked.map((x) => (
+            <button key={x.store_code} className="storechip" onClick={() => nav(`/admin/stores?q=${encodeURIComponent(x.store_code)}`)}>
+              <i className={`dot d-${x.status}`} />
+              <span className="nm">{x.name}</span>
+              <span className="code num">{x.store_code}{x.last_date ? ` · ${df(x.last_date)}` : ""}</span>
             </button>
           ))}
         </div>
-      </section>
-    </Shell>
+      )}
+      <div className="legend" style={{ marginTop: 12, marginBottom: 0 }}>{ORDER.map((k) => <span key={k}><i className={`sq s-${k} mini`} />{t(`st_${k}` as TKey)}</span>)}</div>
+    </section>
   );
 }

@@ -31,12 +31,14 @@ export function AuthLayout({ children }: { children: ReactNode }) {
   const appName = (lang === "ar" ? ps?.app_name_ar : ps?.app_name_en) || t("app");
   return (
     <div className="login">
-      <div className="tools-corner"><Tools /></div>
       <section className="login-hero">
-        <span className="logo-chip"><img src={LOGO} alt="talabat mart" /></span>
+        <div className="login-top">
+          <span className="logo-chip"><img src={LOGO} alt="talabat mart" /></span>
+          <div style={{ display: "flex", gap: 8 }}><Tools /></div>
+        </div>
         <Art />
-        <div style={{ display: "grid", gap: 10 }}>
-          <p style={{ fontWeight: 500, color: "#FF9A66" }}>{appName}</p>
+        <div>
+          <p className="kick">{appName}</p>
           <h1>{t("loginHero")}</h1>
         </div>
       </section>
@@ -76,10 +78,10 @@ export default function Login() {
   return (
     <AuthLayout>
       <form className="box" onSubmit={submit} noValidate>
-        <h2 style={{ margin: "0 0 4px", fontSize: 24, fontWeight: 600 }}>{t("signIn")}</h2>
-        <p className="muted" style={{ margin: "0 0 18px" }}>{msg}</p>
+        <h2>{t("signIn")}</h2>
+        <p className="sub">{msg}</p>
         {idleExpired && <div className="banner info">{t("sessionEnded")}</div>}
-        <div className="seg" role="group" aria-label={t("signIn")} style={{ marginBottom: 14 }}>
+        <div className="seg" role="group" aria-label={t("signIn")}>
           <button type="button" aria-pressed={mode === "password"} onClick={() => { setMode("password"); setP(""); setErr(""); }}>{t("byPassword")}</button>
           <button type="button" aria-pressed={mode === "pin"} onClick={() => { setMode("pin"); setP(""); setErr(""); }}>{t("byPin")}</button>
         </div>
