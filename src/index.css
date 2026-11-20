@@ -167,6 +167,20 @@ textarea.input{min-height:88px;resize:vertical}
 .segpills button[aria-pressed="true"]{background:var(--pill);color:var(--pill-ink);border-color:transparent}
 .segpills button b{font-size:12px;opacity:.75}
 
+/* ── equipment status ── */
+.eq-hero{display:flex;align-items:center;gap:16px;flex-wrap:wrap}
+.eq-ic{width:60px;height:60px;border-radius:20px;background:rgba(255,255,255,.14);display:grid;place-items:center;flex:none;color:#fff}
+.eq-stats{display:flex;gap:8px;flex-wrap:wrap;margin-inline-start:auto}
+.eqlist{display:grid;grid-template-columns:repeat(auto-fill,minmax(320px,1fr));gap:12px}
+.eqrow{display:flex;flex-direction:column;gap:10px;text-align:start;background:var(--card);border:1px solid var(--line);border-radius:var(--r-md);padding:14px 16px;box-shadow:var(--shadow-sm);min-width:0}
+.eqrow-head{display:flex;justify-content:space-between;gap:10px;align-items:flex-start}
+.eqrow-head b{font-size:15px}
+.eqchips{display:flex;flex-wrap:wrap;gap:6px}
+.eqchip{font-size:12.5px;border-radius:999px;padding:4px 10px;background:var(--surface);color:var(--ink-2)}
+.eqchip.e-warn{background:var(--caution-bg);color:var(--caution-t)} .eqchip.e-bad{background:var(--alarm-bg);color:var(--alarm)}
+.segpills button svg{flex:none}
+.eqicon-badge{width:40px;height:40px;border-radius:14px;display:grid;place-items:center;color:#fff;flex:none}
+
 /* ── tables ── */
 .tw{overflow-x:auto}
 table.t{width:100%;border-collapse:collapse;font-size:13.5px}
@@ -185,14 +199,16 @@ table.t tr.click{cursor:pointer} table.t tr.click:hover td{background:var(--surf
 .issue h4{margin:0 0 2px;font-size:14.5px;font-weight:600}
 .issue p{margin:0;font-size:13px;color:var(--ink-2);overflow-wrap:anywhere}
 .issue .meta{font-size:12px;color:var(--ink-3);margin-top:4px}
-.flow{display:flex;gap:6px;flex-wrap:wrap;justify-content:flex-end}
+.flow{display:flex;gap:6px;flex-wrap:wrap;justify-content:flex-end;align-items:center}
+.flow .btn{min-height:36px;padding:6px 14px;font-size:13px;box-shadow:none}
+.flow .iconbtn{width:36px;height:36px;box-shadow:none;border:1px solid var(--line)}
 
 /* ── technician ── */
 .storelist{display:grid;grid-template-columns:repeat(auto-fill,minmax(290px,1fr));gap:14px}
 .sc{border-radius:var(--r-lg);padding:18px;display:flex;flex-direction:column;gap:12px;background:var(--card);box-shadow:var(--shadow-sm);border:1px solid var(--line)}
 .sc h3{font-size:17px;font-weight:600}
 .sc .eq{display:flex;gap:6px;flex-wrap:wrap}
-.sc .eq span{font-size:12px;background:var(--surface);border-radius:999px;padding:4px 10px;color:var(--ink-2)}
+.sc .eq span{font-size:13px;background:var(--surface);border-radius:999px;padding:5px 11px;color:var(--ink-2);display:inline-flex;align-items:center;gap:6px;font-weight:600}
 .sc .btn{width:100%}
 .wiz{display:grid;grid-template-columns:260px minmax(0,1fr);gap:16px;align-items:start}
 .steps{list-style:none;margin:0;padding:20px;border-radius:var(--r-lg);position:sticky;top:16px;background:var(--hero)!important;color:var(--hero-ink);border:0!important}

@@ -1,5 +1,12 @@
 # CHANGELOG
 
+## 1.4.0 — 2026-11-21
+- Formal line icons for every inspected equipment type (powder, CO2, Fire Search, hose cabinet, alarm, pump) in the wizard, issues, dashboard, store cards, settings and equipment status.
+- Equipment status page rebuilt: scrollable type pills, summary hero, card rows with coloured result chips.
+- Issues: equipment icon badge, priority pill, compact actions (only the next step + resolve).
+- Daily database backup to the `backups` branch (one copy, replaced every day; optional AES-256 encryption).
+- CI pinned to Ubuntu 24.04 (Playwright dependencies).
+
 ## 1.3.0 — 2026-11-21
 - Sign in with a PIN (4–6 digits) as an alternative to the password, with mobile number or username. PINs are bcrypt-hashed in a table no app role can read; 5 wrong tries lock it for 15 minutes, 15 disable it until reset. Users set their own PIN (key button); admins can set or remove a user's PIN.
 - New Edge Function `pin-login` (anonymous sign-in endpoint).

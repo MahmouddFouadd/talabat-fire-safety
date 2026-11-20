@@ -4,6 +4,7 @@ import { Shell } from "../../components/Shell";
 import { ErrorBox, Kpi, Loading } from "../../components/ui";
 import { useDashboard, useStoreStatus, useZones } from "../../lib/api";
 import { useI18n, type TKey } from "../../lib/i18n";
+import { EqIcon } from "../../components/EqIcon";
 import type { StoreStatus, StoreStatusRow, Zone } from "../../lib/types";
 
 const ORDER: StoreStatus[] = ["overdue", "never", "pending", "issues", "ok"];
@@ -98,7 +99,7 @@ export default function Dashboard() {
           <h3 className="ttl">{t("byEquipment")}</h3>
           <div className="rev">
             {(["p6", "co2", "fs", "hc", "al", "fp"] as const).map((k) => (
-              <div className="r" key={k}><span>{t(`eq_${k}` as TKey)}</span><b className="num">{nf(s.issues_by_equipment[k] ?? 0)}</b></div>
+              <div className="r" key={k}><span style={{ display: "inline-flex", gap: 10, alignItems: "center" }}><EqIcon code={k} size={20} />{t(`eq_${k}` as TKey)}</span><b className="num">{nf(s.issues_by_equipment[k] ?? 0)}</b></div>
             ))}
           </div>
         </div>

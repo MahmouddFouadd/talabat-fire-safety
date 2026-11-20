@@ -7,6 +7,7 @@ import { supabase } from "../../lib/supabase";
 import { useI18n } from "../../lib/i18n";
 import { download } from "../../lib/csv";
 import type { EquipmentType } from "../../lib/types";
+import { EqIcon } from "../../components/EqIcon";
 
 const TEXT_KEYS = ["app_name_ar", "app_name_en", "login_message_ar", "login_message_en"] as const;
 
@@ -84,8 +85,9 @@ export default function Settings() {
         <p className="muted" style={{ marginTop: -6 }}>{t("eqTypesHint")}</p>
         <div style={{ display: "grid", gap: 10 }}>
           {eq.map((e, i) => (
-            <div key={e.code} className="grid" style={{ gridTemplateColumns: "minmax(0,1fr) minmax(0,1fr) auto", alignItems: "end", gap: 10 }}>
-              <Field label={`${t("nameAr")} (${e.code})`}><input className="input" value={e.name_ar} maxLength={80} onChange={(x) => setEq(eq.map((y, j) => (j === i ? { ...y, name_ar: x.target.value } : y)))} /></Field>
+            <div key={e.code} className="grid" style={{ gridTemplateColumns: "auto minmax(0,1fr) minmax(0,1fr) auto", alignItems: "center", gap: 10 }}>
+              <span className="eqicon-badge" style={{ background: "var(--hero)" }}><EqIcon code={e.code} size={22} /></span>
+              <Field label={t("nameAr")}><input className="input" value={e.name_ar} maxLength={80} onChange={(x) => setEq(eq.map((y, j) => (j === i ? { ...y, name_ar: x.target.value } : y)))} /></Field>
               <Field label={t("nameEn")}><input className="input" dir="ltr" value={e.name_en} maxLength={80} onChange={(x) => setEq(eq.map((y, j) => (j === i ? { ...y, name_en: x.target.value } : y)))} /></Field>
               <label className="check"><input type="checkbox" checked={e.active} onChange={(x) => setEq(eq.map((y, j) => (j === i ? { ...y, active: x.target.checked } : y)))} />{t("active")}</label>
             </div>

@@ -8,6 +8,7 @@ import { useI18n, type TKey } from "../../lib/i18n";
 import { drafts, enqueue, submitPayload, type InspectionPayload, type SubmitResult } from "../../lib/offline";
 import { errorCode, errorText } from "../../lib/errors";
 import type { EqCode } from "../../lib/types";
+import { EqIcon } from "../../components/EqIcon";
 
 type Opt = [string, "ok" | "warn" | "bad"];
 const OPTS: Record<string, Opt[]> = {
@@ -203,7 +204,7 @@ export default function Inspect() {
       <div className="rev">
         {steps.filter((s): s is EqCode => s !== "rev").map((s) => (
           <button key={s} type="button" className="r" onClick={() => setStep(steps.indexOf(s))} style={{ textAlign: "start" }}>
-            <span>{typeName(s)}</span>
+            <span style={{ display: "inline-flex", gap: 10, alignItems: "center" }}><EqIcon code={s} size={20} />{typeName(s)}</span>
             <span className={`pill ${hasIssue(s) ? "p-warn" : "p-ok"}`}>{s === "p6" || s === "co2" || s === "fs" ? `${nf(p[s].good)}/${nf(qtyOf(s))}` : s === "hc" ? `${nf(p.hc.ok)}/${nf(base.hc_total)}` : t(hasIssue(s) ? "ov_warn" : "ov_ok")}</span>
           </button>
         ))}
@@ -226,13 +227,13 @@ export default function Inspect() {
         <ol className="steps glass">
           {steps.map((s, i) => (
             <li key={s} className={i < step ? "done" : i === step ? "cur" : ""}>
-              <span className="n num">{i < step ? "✓" : nf(i + 1)}</span>{stepName(s)}
+              <span className="n num">{i < step ? "✓" : s === "rev" ? nf(i + 1) : <EqIcon code={s} size={17} />}</span>{stepName(s)}
             </li>
           ))}
         </ol>
         <section className="panel glass">
           <div className="mprog" aria-hidden="true">{steps.map((s, i) => <i key={s} className={i < step ? "done" : i === step ? "cur" : ""} />)}</div>
-          <h2>{stepName(cur)}</h2>
+          <h2 style={{ display: "flex", alignItems: "center", gap: 12 }}>{cur !== "rev" && <span className="eqicon-badge" style={{ background: "var(--hero)" }}><EqIcon code={cur} size={24} /></span>}{stepName(cur)}</h2>
           <p className="muted num" style={{ margin: "0 0 16px" }}>{store.name} · {store.store_code} · {nf(step + 1)}/{nf(steps.length)}</p>
           {body}
           {err && <div className="banner bad" role="alert" style={{ marginTop: 14 }}>{err}</div>}

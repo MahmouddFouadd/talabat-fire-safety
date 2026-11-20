@@ -8,6 +8,7 @@ import { useI18n } from "../../lib/i18n";
 import { drafts, flushOutbox, listOutbox, removeOutbox, type OutboxItem } from "../../lib/offline";
 import { errorText } from "../../lib/errors";
 import { PinDialog, usePinStatus } from "../../components/PinDialog";
+import { EqIcon } from "../../components/EqIcon";
 import type { StoreStatus } from "../../lib/types";
 
 const ORDER: Record<StoreStatus, number> = { overdue: 0, never: 1, pending: 2, issues: 3, ok: 4 };
@@ -102,7 +103,7 @@ export default function MyStores() {
                   <div><h3 style={{ margin: 0, fontSize: 16 }}>{s.name}</h3><div className="code num">{s.store_code} · {t("lastInspection")} {df(s.last_date)}</div></div>
                   <StatusPill s={s.status} />
                 </div>
-                {b ? <div className="eq num"><span>6kg ×{nf(b.p6_qty)}</span><span>CO2 ×{nf(b.co2_qty)}</span><span>FS ×{nf(b.fs_qty)}</span><span>HC ×{nf(b.hc_total)}</span></div>
+                {b ? <div className="eq num">{([["p6", b.p6_qty], ["co2", b.co2_qty], ["fs", b.fs_qty], ["hc", b.hc_total]] as const).map(([c, q]) => <span key={c} title={t(`eq_${c}`)}><EqIcon code={c} size={16} />{nf(q)}</span>)}</div>
                   : <div className="code" style={{ color: "var(--alarm)" }}>{t("noBaseTech")}</div>}
                 {s.open_issues > 0 && <div className="code">{t("openIssues")}: {nf(s.open_issues)}</div>}
                 <button className={`btn lg ${done || queued ? "" : "pri"}`} disabled={done || queued || !b} onClick={() => nav(`/tech/inspect/${encodeURIComponent(s.store_code)}`)}>

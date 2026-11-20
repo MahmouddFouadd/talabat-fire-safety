@@ -2,6 +2,8 @@ import { useState } from "react";
 import { Shell } from "../../components/Shell";
 import { Empty, ErrorBox, Field, Kpi, Loading, Modal, Pager, useErrorToast, useToast } from "../../components/ui";
 import { InspectionDetail } from "../../components/InspectionDetail";
+import { EqIcon } from "../../components/EqIcon";
+import { Icon } from "../../components/icons";
 import { PAGE, useDashboard, useIssueEvents, useIssues, useStaff, useUpdateIssue, useZones } from "../../lib/api";
 import { useI18n, type TKey } from "../../lib/i18n";
 import type { Issue, IssueStatus, Priority } from "../../lib/types";
@@ -42,20 +44,20 @@ export default function Issues() {
         <section className="card glass">
           {list.data.rows.map((i) => (
             <div className="issue" key={i.id}>
-              <div className={`prio pr-${i.priority}`} title={t(`pr_${i.priority}` as TKey)}>{t(`pr_${i.priority}` as TKey).slice(0, 1)}</div>
+              <div className={`prio pr-${i.priority}`} title={`${t(`eq_${i.equipment}` as TKey)} · ${t(`pr_${i.priority}` as TKey)}`}><EqIcon code={i.equipment} size={22} /></div>
               <div>
                 <h4>{t(`eq_${i.equipment}` as TKey)} — {i.stores?.name} <span className="code num">({i.store_code})</span></h4>
                 <p>{i.description}</p>
-                <div className="meta num">{i.issue_code} · {t(`pr_${i.priority}` as TKey)} · <b>{t(`is_${i.status}` as TKey)}</b> · {t("createdAt")} {df(i.created_at)}
+                <div className="meta num"><span className={`pill ${i.priority === "critical" ? "p-bad" : i.priority === "low" ? "p-none" : "p-warn"}`}>{t(`pr_${i.priority}` as TKey)}</span> <b>{t(`is_${i.status}` as TKey)}</b> · {i.issue_code} · {t("createdAt")} {df(i.created_at)}
                   {i.assigned_to && <> · {t("assignTo")} {name(i.assigned_to)}</>}
                   {i.resolved_at && <> · {t("resolvedAt")} {df(i.resolved_at)}</>}</div>
                 {i.resolution_notes && <p style={{ marginTop: 6 }}><b>{t("resolutionNotes")}:</b> {i.resolution_notes}</p>}
               </div>
               <div className="flow">
-                {i.inspection_id && <button className="btn" onClick={() => setIns(i.inspection_id)}>{t("fromInspection")}</button>}
-                <button className="btn" onClick={() => setHist(i)}>{t("issueHistory")}</button>
+                {i.inspection_id && <button className="iconbtn" onClick={() => setIns(i.inspection_id)} title={t("fromInspection")} aria-label={t("fromInspection")}><Icon name="inspections" size={17} /></button>}
+                <button className="iconbtn" onClick={() => setHist(i)} title={t("issueHistory")} aria-label={t("issueHistory")}><Icon name="history" size={17} /></button>
                 {i.status === "open" && <button className="btn" onClick={() => setAct({ issue: i, to: "assigned" })}>{t("assign")}</button>}
-                {(i.status === "open" || i.status === "assigned") && <button className="btn" onClick={() => setAct({ issue: i, to: "in_progress" })}>{t("startRepair")}</button>}
+                {i.status === "assigned" && <button className="btn" onClick={() => setAct({ issue: i, to: "in_progress" })}>{t("startRepair")}</button>}
                 {!["resolved", "closed"].includes(i.status) && <button className="btn wine" onClick={() => setAct({ issue: i, to: "resolved" })}>{t("resolve")}</button>}
                 {i.status === "resolved" && <button className="btn" onClick={() => setAct({ issue: i, to: "closed" })}>{t("closeIssue")}</button>}
                 {["resolved", "closed"].includes(i.status) && <button className="btn" onClick={() => setAct({ issue: i, to: "open" })}>{t("reopen")}</button>}

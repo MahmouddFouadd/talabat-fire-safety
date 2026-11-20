@@ -1,0 +1,61 @@
+name: Daily database backup
+# Every day: dump the Supabase database and store it on the `backups` branch of this (private) repo.
+# The branch always holds ONE commit — each run replaces yesterday's backup (force-push), as requested.
+# PIN hashes (staff_pins) are never included. Set the BACKUP_PASSPHRASE secret to encrypt the files (recommended).
+on:
+  schedule:
+    - cron: "0 1 * * *"     # 01:00 UTC = 03:00 Cairo
+  workflow_dispatch:
+permissions: { contents: write }
+concurrency: { group: backup, cancel-in-progress: false }
+jobs:
+  backup:
+    runs-on: ubuntu-24.04
+    env:
+      SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+      SUPABASE_DB_PASSWORD: ${{ secrets.SUPABASE_DB_PASSWORD }}
+      BACKUP_PASSPHRASE: ${{ secrets.BACKUP_PASSPHRASE }}
+      PROJECT_REF: ${{ vars.SUPABASE_PROJECT_REF || 'pwijwlcqtjoaqxjnygwh' }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: supabase/setup-cli@v1
+        with: { version: latest }
+      - name: Link project
+        run: supabase link --project-ref "$PROJECT_REF" -p "$SUPABASE_DB_PASSWORD"
+      - name: Dump schema + data
+        run: |
+          set -euo pipefail
+          mkdir -p out
+          supabase db dump --linked -f out/schema.sql
+          supabase db dump --linked --data-only --use-copy -s public -x public.staff_pins -f out/data.sql
+          # sanity: the dump must contain the core tables, else fail instead of overwriting a good backup
+          for tbl in stores staff store_equipment inspections issues; do grep -Eq "\"?public\"?\.\"?$tbl\"?" out/data.sql || { echo "::error::$tbl missing from dump"; exit 1; }; done
+          gzip -9 out/schema.sql out/data.sql
+          ls -la out
+      - name: Encrypt (if BACKUP_PASSPHRASE is set)
+        run: |
+          set -euo pipefail
+          if [ -n "$BACKUP_PASSPHRASE" ]; then
+            for f in out/*.gz; do gpg --batch --yes --pinentry-mode loopback --passphrase "$BACKUP_PASSPHRASE" --symmetric --cipher-algo AES256 -o "$f.gpg" "$f" && rm "$f"; done
+            echo "ENCRYPTED=yes" >> "$GITHUB_ENV"
+          else
+            echo "::warning::BACKUP_PASSPHRASE not set — backup is stored unencrypted in this private repo."
+            echo "ENCRYPTED=no" >> "$GITHUB_ENV"
+          fi
+      - name: Replace the backups branch with today's backup
+        run: |
+          set -euo pipefail
+          STAMP=$(TZ=Africa/Cairo date '+%Y-%m-%d %H:%M')
+          mkdir pub && cp out/* pub/ && cd pub
+          cat > README.md <<MD
+          # Database backup — $STAMP (Cairo)
+          Encrypted: $ENCRYPTED · Project: $PROJECT_REF
+          Files: schema.sql.gz, data.sql.gz$( [ "$ENCRYPTED" = yes ] && echo " (each .gpg, AES-256)" )
+          Restore steps: docs/BACKUP_RESTORE.md on the main branch.
+          MD
+          sha256sum * > SHA256SUMS.txt
+          git init -q -b backups
+          git config user.name "backup-bot" && git config user.email "backup-bot@users.noreply.github.com"
+          git add -A && git commit -qm "backup $STAMP"
+          git push -f "https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/${{ github.repository }}.git" backups:backups
+          echo "### Backup saved ($STAMP, encrypted: $ENCRYPTED)" >> "$GITHUB_STEP_SUMMARY"
