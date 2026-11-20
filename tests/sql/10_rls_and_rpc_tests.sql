@@ -136,3 +136,41 @@ do $$ begin
   exception when insufficient_privilege then raise notice 'ok - technician cannot call bootstrap_admin'; end;
 end $$;
 reset role;
+-- ── technician store scope option ──
+select pg_temp.as_user('00000000-0000-0000-0000-00000000000a');
+set role authenticated;
+update public.staff set zone_id = (select id from public.zones where code = 'Zone 2') where legacy_code = 'TECH003';
+reset role;
+select pg_temp.as_user('00000000-0000-0000-0000-000000000003');
+set role authenticated;
+select pg_temp.expect((select count(*) from public.stores) = 15, 'scope=assigned: tech3 sees only its 15 assigned stores');
+do $$ begin
+  begin perform public.submit_inspection('{"client_id":"55555555-5555-5555-5555-555555555555","store_code":"DS4"}'::jsonb);
+  exception when others then if sqlerrm <> 'STORE_NOT_ASSIGNED' then raise; end if; raise notice 'ok - scope=assigned: zone store of another tech rejected'; return; end;
+  raise exception 'TEST FAILED';
+end $$;
+do $$ begin
+  begin update public.app_settings set value='"zone"' where key='tech_store_scope';
+    if found then raise exception 'TEST FAILED: tech changed scope'; end if;
+  exception when insufficient_privilege then null; end; raise notice 'ok - technician cannot change the scope setting';
+end $$;
+reset role;
+select pg_temp.as_user('00000000-0000-0000-0000-00000000000a');
+set role authenticated;
+update public.app_settings set value = '"zone"' where key = 'tech_store_scope';
+reset role;
+select pg_temp.as_user('00000000-0000-0000-0000-000000000003');
+set role authenticated;
+select pg_temp.expect((select count(*) from public.stores) = 28, 'scope=zone: tech3 sees 15 assigned + 13 zone-2 stores');
+select pg_temp.expect((select count(*) from public.inspections where store_code='DS1') = 1, 'scope=zone: sees colleague inspection of a zone store');
+select pg_temp.expect((select status from public.v_store_status where store_code='DS1') = 'issues', 'scope=zone: DS1 shows inspected-with-issues, not pending');
+do $$ begin
+  begin perform public.submit_inspection('{"client_id":"66666666-6666-6666-6666-666666666666","store_code":"DS1"}'::jsonb);
+  exception when others then if sqlerrm <> 'DUPLICATE_WEEK' then raise; end if; raise notice 'ok - scope=zone: zone store allowed, weekly duplicate still blocked'; return; end;
+  raise exception 'TEST FAILED';
+end $$;
+reset role;
+select pg_temp.as_user('00000000-0000-0000-0000-000000000002');
+set role authenticated;
+select pg_temp.expect((select count(*) from public.stores where zone_id <> (select zone_id from public.staff where legacy_code='TECH002')) = 0, 'scope=zone: tech2 still sees no other zone');
+reset role;

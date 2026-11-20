@@ -17,7 +17,10 @@ export default function MyStores() {
   const st = useStoreStatus(); const eq = useStoreEquipment();
   const [outbox, setOutbox] = useState<OutboxItem[]>([]); const [draftStores, setDraftStores] = useState<Set<string>>(new Set()); const [syncing, setSyncing] = useState(false);
 
-  const mine = useMemo(() => (st.data ?? []).filter((s) => s.active && s.assigned_tech_id === staff?.id).sort((a, b) => ORDER[a.status] - ORDER[b.status]), [st.data, staff]);
+  // The database (RLS) already returns exactly the stores this technician may work on —
+  // assigned ones, plus the whole zone when the admin enabled "zone" scope.
+  const mine = useMemo(() => (st.data ?? []).filter((s) => s.active && (staff?.role === "technician" || s.assigned_tech_id === staff?.id))
+    .sort((a, b) => ORDER[a.status] - ORDER[b.status]), [st.data, staff]);
   const count = (k: StoreStatus) => mine.filter((s) => s.status === k).length;
 
   async function refreshLocal() {

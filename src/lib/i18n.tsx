@@ -62,7 +62,9 @@ const ar = {
   general: "عام", appNameAr: "اسم التطبيق (عربي)", appNameEn: "اسم التطبيق (إنجليزي)", loginMsgAr: "رسالة الدخول (عربي)", loginMsgEn: "رسالة الدخول (إنجليزي)",
   overdueDays: "يُعتبر الفرع متأخر بعد (يوم)", requireRemarks: "إلزام الفني بكتابة ملاحظات لما يكون فيه مشكلة", idleMinutes: "تسجيل خروج تلقائي بعد عدم نشاط (دقيقة)",
   eqTypes: "أنواع المعدات في الفحص", eqTypesHint: "تقدر تغيّر الأسماء أو توقف نوع. النوع الموقوف مش بيظهر في الفحص.", backup: "نسخة احتياطية",
-  backupHint: "تنزيل نسخة JSON من كل الجداول اللي عندك صلاحية عليها.", downloadBackup: "تنزيل النسخة", language: "اللغة", theme: "المظهر",
+  backupHint: "تنزيل نسخة JSON من كل الجداول اللي عندك صلاحية عليها.",
+  techScope: "الفروع اللي بتظهر للفني", scopeAssigned: "الفروع المتعيّنة له بالاسم بس", scopeZone: "كل فروع منطقته + المتعيّنة له",
+  techScopeHint: "في وضع (كل فروع منطقته) لازم تحدد منطقة لكل فني من صفحة المستخدمين. أكتر من فني ممكن يشتغلوا على نفس المنطقة، والفرع بيتفحص مرة واحدة في الأسبوع.", downloadBackup: "تنزيل النسخة", language: "اللغة", theme: "المظهر",
   // audit
   action: "الإجراء", entity: "الجدول", actor: "بواسطة", details: "التفاصيل",
   // misc
@@ -119,7 +121,9 @@ const en: Dict = {
   general: "General", appNameAr: "App name (Arabic)", appNameEn: "App name (English)", loginMsgAr: "Sign-in message (Arabic)", loginMsgEn: "Sign-in message (English)",
   overdueDays: "Store is overdue after (days)", requireRemarks: "Require technician remarks when there's an issue", idleMinutes: "Sign out after inactivity (minutes)",
   eqTypes: "Equipment types in the inspection", eqTypesHint: "Rename or switch off a type. Switched-off types are skipped in the inspection.", backup: "Backup",
-  backupHint: "Download a JSON copy of every table you can access.", downloadBackup: "Download backup", language: "Language", theme: "Appearance",
+  backupHint: "Download a JSON copy of every table you can access.",
+  techScope: "Stores shown to a technician", scopeAssigned: "Only stores assigned to them by name", scopeZone: "All stores in their zone + assigned ones",
+  techScopeHint: "In zone mode, set a zone for each technician on the Users page. Several technicians can share a zone; each store is still inspected once per week.", downloadBackup: "Download backup", language: "Language", theme: "Appearance",
   action: "Action", entity: "Table", actor: "By", details: "Details",
   preview: "Preview", dark: "Dark", light: "Light", system: "System", installApp: "Install app", updateReady: "A new version is available", updateNow: "Update now",
 };

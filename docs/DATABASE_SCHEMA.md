@@ -25,3 +25,9 @@ Source of truth: `supabase/migrations/`. Summary:
 
 ### Issue rules (unchanged from the pilot, now server-side)
 Powder damaged/missing → medium (high if any missing) · CO2 → medium · Fire Search → medium · Hose cabinet (any component not good or fewer fully-OK cabinets) → medium · Fire alarm fault → critical, other alarm component problems → high · Fire pump not running / not tested → high.
+
+### Technician store scope (Settings → "Stores shown to a technician")
+`app_settings.tech_store_scope`:
+- `assigned` (default): a technician works on stores assigned to them by name.
+- `zone`: assigned stores **plus** every store in the technician's zone (set the zone on the Users page). Several technicians can share a zone; the one-inspection-per-store-per-week rule still applies.
+One SQL helper, `can_access_store()`, is used by RLS (stores, base quantities, issues, inspections) and by `submit_inspection`, so the app and the API always agree.

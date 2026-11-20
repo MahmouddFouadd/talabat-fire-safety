@@ -24,11 +24,12 @@ export default function Settings() {
     setBusy(true);
     const rows = [...TEXT_KEYS.map((k) => ({ key: k, value: String(f[k] ?? "").slice(0, 200) })),
       { key: "overdue_days", value: Math.trunc(overdue) }, { key: "session_idle_minutes", value: Math.trunc(idle) },
-      { key: "require_remarks_on_issue", value: f.require_remarks_on_issue === true }];
+      { key: "require_remarks_on_issue", value: f.require_remarks_on_issue === true },
+      { key: "tech_store_scope", value: f.tech_store_scope === "zone" ? "zone" : "assigned" }];
     const { error } = await supabase.from("app_settings").upsert(rows);
     setBusy(false);
     if (error) return toastErr(error);
-    await inv("settings", "public-settings", "store-status", "dashboard"); toast(t("saved"), "ok");
+    await inv("settings", "public-settings", "store-status", "dashboard", "stores"); toast(t("saved"), "ok");
   }
   async function saveTypes() {
     setBusy(true);
@@ -66,6 +67,14 @@ export default function Settings() {
           <Field label={t("overdueDays")}><input className="input num" type="number" min={1} max={60} value={String(f.overdue_days ?? 7)} onChange={(e) => setF({ ...f, overdue_days: e.target.value })} /></Field>
           <Field label={t("idleMinutes")}><input className="input num" type="number" min={5} max={1440} value={String(f.session_idle_minutes ?? 480)} onChange={(e) => setF({ ...f, session_idle_minutes: e.target.value })} /></Field>
         </div>
+        <div className="q">{t("techScope")}</div>
+        <div className="chips" role="radiogroup" aria-label={t("techScope")}>
+          {(["assigned", "zone"] as const).map((v) => (
+            <button key={v} type="button" role="radio" aria-checked={(f.tech_store_scope ?? "assigned") === v} aria-pressed={(f.tech_store_scope ?? "assigned") === v}
+              className="chip c-ok" onClick={() => setF({ ...f, tech_store_scope: v })}>{t(v === "zone" ? "scopeZone" : "scopeAssigned")}</button>
+          ))}
+        </div>
+        <p className="code" style={{ margin: "6px 0 10px" }}>{t("techScopeHint")}</p>
         <label className="check"><input type="checkbox" checked={f.require_remarks_on_issue === true} onChange={(e) => setF({ ...f, require_remarks_on_issue: e.target.checked })} />{t("requireRemarks")}</label>
         <div style={{ display: "flex", justifyContent: "flex-end" }}><button className="btn pri" disabled={busy} onClick={saveSettings}>{t("save")}</button></div>
       </section>

@@ -1,5 +1,10 @@
 # CHANGELOG
 
+## 1.1.0 — 2026-11-20
+- Admin option: technicians see only assigned stores (default) or all stores in their zone.
+- Fixed endless loading after sign-in; 20 s request timeout; explicit API grants for new Supabase projects.
+- Latin digits in the Arabic UI; 360 px layout fixes.
+
 ## 1.0.0 — 2026-11-20
 ### New platform
 - Supabase (Postgres + RLS + RPC + Auth + Edge Function) replaces Google Sheets / Apps Script.
