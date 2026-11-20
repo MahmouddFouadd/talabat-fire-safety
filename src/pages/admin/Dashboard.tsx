@@ -31,7 +31,7 @@ export default function Dashboard() {
   const done = bs("ok") + bs("issues");
   const pct = s.stores ? Math.round((done / s.stores) * 100) : 0;
   const maxTrend = Math.max(1, ...s.trend.map((w) => w.inspections));
-  const pctFmt = new Intl.NumberFormat(lang === "ar" ? "ar-EG" : "en-GB", { style: "percent" });
+  const pctFmt = new Intl.NumberFormat(lang === "ar" ? "ar-EG-u-nu-latn" : "en-GB", { style: "percent" });
   const tiles = (stores.data ?? []).filter((x) => x.active && (!zone || x.zone_id === zone));
 
   return (
@@ -75,7 +75,7 @@ export default function Dashboard() {
                   <i className="w" style={{ height: `${w.inspections ? (w.with_issues / w.inspections) * 100 : 0}%` }} />
                   <i style={{ flex: 1 }} />
                 </div>
-                <span className="num">{new Date(w.week_start + "T00:00:00").toLocaleDateString(lang === "ar" ? "ar-EG" : "en-GB", { day: "numeric", month: "numeric" })}</span>
+                <span className="num">{new Date(w.week_start + "T00:00:00").toLocaleDateString(lang === "ar" ? "ar-EG-u-nu-latn" : "en-GB", { day: "numeric", month: "numeric" })}</span>
               </div>
             ))}
           </div>

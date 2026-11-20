@@ -9,7 +9,7 @@ async function noHorizontalOverflow(page: Page) {
 test("admin dashboard shows figures from the database", async ({ page }, info) => {
   await login(page, "admin");
   await expect(page.getByRole("heading", { level: 1, name: "لوحة المتابعة" })).toBeVisible();
-  await expect(page.getByText("من ٦٦").first()).toBeVisible();
+  await expect(page.getByText("من 66").first()).toBeVisible();
   await noHorizontalOverflow(page);
   await page.screenshot({ path: `test-results/shots/${info.project.name}-admin-dashboard.png`, fullPage: false });
 });
@@ -37,7 +37,7 @@ test("language switch flips direction and keeps the page", async ({ page }) => {
 
 test("technician sees only own stores and can complete an inspection", async ({ page }, info) => {
   await login(page, "tech");
-  await expect(page.locator("main h1")).toContainText("(١٣)");
+  await expect(page.locator("main h1")).toContainText("(13)");
   await noHorizontalOverflow(page);
   await page.screenshot({ path: `test-results/shots/${info.project.name}-tech-stores.png` });
   await page.getByRole("button", { name: /ابدأ الفحص|كمّل المسودة/ }).first().click();

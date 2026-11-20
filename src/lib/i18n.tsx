@@ -137,7 +137,7 @@ export function I18nProvider({ children }: { children: ReactNode }) {
     document.documentElement.dir = lang === "ar" ? "rtl" : "ltr";
   }, [lang]);
   const value = useMemo<I18n>(() => {
-    const locale = lang === "ar" ? "ar-EG" : "en-GB";
+    const locale = lang === "ar" ? "ar-EG-u-nu-latn" : "en-GB";
     const nfmt = new Intl.NumberFormat(locale);
     return {
       lang, setLang, dir: lang === "ar" ? "rtl" : "ltr",
