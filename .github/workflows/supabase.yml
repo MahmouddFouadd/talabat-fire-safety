@@ -88,5 +88,6 @@ jobs:
           r=$(q "select (select count(*) from public.zones) zones, (select count(*) from public.staff) staff, (select count(*) from public.stores) stores, (select count(*) from public.store_equipment) store_equipment, (select count(*) from public.equipment_types) equipment_types, (select count(*) from public.staff where role='admin' and auth_user_id is not null) admins_linked, (select bool_and(relrowsecurity) from pg_class where relnamespace='public'::regnamespace and relkind='r') rls_on_all_tables")
           echo "$r" | jq .
           { echo "| check | value | expected |"; echo "|---|---|---|";
-            echo "$r" | jq -r '.[0] | "| zones | \(.zones) | 4 |\n| staff | \(.staff) | 5 |\n| stores | \(.stores) | 66 |\n| store_equipment | \(.store_equipment) | 54 |\n| equipment_types | \(.equipment_types) | 6 |\n| admins linked | \(.admins_linked) | ≥1 |\n| RLS on all tables | \(.rls_on_all_tables) | true |"'; } >> "$GITHUB_STEP_SUMMARY"
-          echo "$r" | jq -e '.[0] | .stores==66 and .store_equipment==54 and .rls_on_all_tables==true' > /dev/null
+            echo "$r" | jq -r '.[0] | "| zones | \(.zones) | ≥1 |\n| staff | \(.staff) | ≥1 |\n| stores | \(.stores) | ≥66 (pilot) |\n| store_equipment | \(.store_equipment) | ≥54 (pilot) |\n| equipment_types | \(.equipment_types) | 6 |\n| admins linked | \(.admins_linked) | ≥1 |\n| RLS on all tables | \(.rls_on_all_tables) | true |"'; } >> "$GITHUB_STEP_SUMMARY"
+          # counts grow as admins add data; only security-critical facts fail the run
+          echo "$r" | jq -e '.[0] | .rls_on_all_tables==true and .admins_linked>=1 and .equipment_types==6' > /dev/null
