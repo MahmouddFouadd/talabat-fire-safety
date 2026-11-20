@@ -37,8 +37,9 @@ jobs:
         run: supabase link --project-ref "$PROJECT_REF" -p "$SUPABASE_DB_PASSWORD"
       - name: 2. Apply migrations
         run: |
-          supabase migration list -p "$SUPABASE_DB_PASSWORD" || true
-          supabase db push -p "$SUPABASE_DB_PASSWORD" --include-all
+          # newer CLI: target the linked remote project explicitly; the password is read from SUPABASE_DB_PASSWORD
+          supabase migration list --linked || true
+          supabase db push --linked --include-all --yes
       - name: 3. Deploy Edge Function admin-users
         run: supabase functions deploy admin-users --project-ref "$PROJECT_REF"
 
