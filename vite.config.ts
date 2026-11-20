@@ -8,11 +8,11 @@ export default defineConfig({
     react(),
     VitePWA({
       registerType: "prompt",
-      includeAssets: ["icons/*.png", "icons/icon.svg"],
+      includeAssets: ["icons/*.png", "brand/*.png"],
       manifest: {
         name: "Fire Safety Management", short_name: "Fire Safety", lang: "ar", dir: "rtl",
         start_url: "./", scope: "./", display: "standalone", orientation: "any",
-        background_color: "#140A0E", theme_color: "#48101D",
+        background_color: "#12302B", theme_color: "#12302B",
         icons: [
           { src: "icons/icon-192.png", sizes: "192x192", type: "image/png" },
           { src: "icons/icon-512.png", sizes: "512x512", type: "image/png" },

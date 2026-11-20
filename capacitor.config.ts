@@ -5,8 +5,8 @@ const config: CapacitorConfig = {
   webDir: "dist",
   android: { allowMixedContent: false },
   plugins: {
-    SplashScreen: { launchShowDuration: 900, backgroundColor: "#48101D", showSpinner: false },
-    StatusBar: { style: "DARK", backgroundColor: "#48101D" }
+    SplashScreen: { launchShowDuration: 900, backgroundColor: "#12302B", showSpinner: false },
+    StatusBar: { style: "DARK", backgroundColor: "#12302B" }
   }
 };
 export default config;

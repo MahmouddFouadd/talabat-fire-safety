@@ -67,8 +67,8 @@ export function Shell({ title, actions, children }: { title: string; actions?: R
     <div className="app">
       <aside className="rail glass" aria-label="Main navigation">
         <div className="brand">
-          <div className="mark"><Icon name="flame" size={22} /></div>
-          <div><b style={{ display: "block", fontSize: 15, lineHeight: 1.2 }}>{t("app")}</b><span className="muted" style={{ fontSize: 12 }}>{t("brand")}</span></div>
+          <img className="brand-logo" src="./brand/talabat-mart.png" alt="talabat mart" />
+          <span>{t("app")}</span>
         </div>
         <nav>
           {items.map((i) => (
@@ -78,7 +78,7 @@ export function Shell({ title, actions, children }: { title: string; actions?: R
             </NavLink>
           ))}
         </nav>
-        <div style={{ marginTop: "auto", display: "flex", alignItems: "center", gap: 10, padding: 12, borderRadius: 16, background: "var(--line)" }}>
+        <div className="who" style={{ marginTop: "auto", display: "flex", alignItems: "center", gap: 10, padding: 12, borderRadius: 22 }}>
           <div className="av">{(staff?.full_name ?? "?").slice(0, 2).toUpperCase()}</div>
           <div style={{ minWidth: 0, flex: 1 }}>
             <b style={{ fontSize: 14, display: "block", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{staff?.full_name}</b>
@@ -102,13 +102,13 @@ export function Shell({ title, actions, children }: { title: string; actions?: R
 
       <nav className="bnav glass" aria-label="Main navigation">
         {mobileMain.map((i) => (
-          <button key={i.to} className={isActive(i.to) ? "active" : ""} onClick={() => nav(i.to)} aria-current={isActive(i.to) ? "page" : undefined}>
+          <button key={i.to} className={isActive(i.to) ? "active" : ""} onClick={() => nav(i.to)} aria-current={isActive(i.to) ? "page" : undefined} aria-label={t(i.key)} title={t(i.key)}>
             <div className="bub"><Icon name={i.icon} /></div><span>{t(i.key)}</span>
             {i.key === "issues" && openIssues > 0 && <b className="cnt num">{openIssues}</b>}
           </button>
         ))}
         {isAdmin && (
-          <button className={items.slice(4).some((i) => isActive(i.to)) ? "active" : ""} onClick={() => setMore(true)}>
+          <button className={items.slice(4).some((i) => isActive(i.to)) ? "active" : ""} onClick={() => setMore(true)} aria-label={t("more")} title={t("more")}>
             <div className="bub"><Icon name="more" /></div><span>{t("more")}</span>
           </button>
         )}

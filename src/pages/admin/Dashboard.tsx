@@ -38,12 +38,12 @@ export default function Dashboard() {
     <Shell title={t("dashboard")} actions={actions}>
       <p className="muted" style={{ marginTop: -10, marginBottom: 16 }}>{t("weekOf")} {df(s.week_start)}</p>
       <section className="grid hero">
-        <div className="card glass" style={{ display: "flex", alignItems: "center", gap: 20 }}>
+        <div className="hero-card" style={{ display: "flex", alignItems: "center", gap: 20 }}>
           <div className="gauge" style={{ ["--p" as string]: pct }}><div><b className="num">{pctFmt.format(pct / 100)}</b><span className="code">{t("completion")}</span></div></div>
           <div>
             <div className="num" style={{ fontSize: 20, fontWeight: 600 }}>{nf(done)} {t("of")} {nf(s.stores)}</div>
             <p className="muted2" style={{ margin: "4px 0" }}>{t("doneThisWeek")}</p>
-            {s.no_base > 0 && <button className="pill p-bad" onClick={() => nav("/admin/equipment?missing=1")}>{nf(s.no_base)} {t("noBase")}</button>}
+            {s.no_base > 0 && <button className="hero-chip" onClick={() => nav("/admin/equipment?missing=1")}>{nf(s.no_base)} {t("noBase")}</button>}
           </div>
         </div>
         <div className="grid g2">

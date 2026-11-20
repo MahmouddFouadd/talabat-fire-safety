@@ -1,6 +1,7 @@
 import { useState, type FormEvent } from "react";
 import { useI18n } from "../lib/i18n";
 import { useAuth } from "../lib/auth";
+import { AuthLayout } from "./Login";
 
 export const strong = (p: string) => p.length >= 10 && /[A-Za-z]/.test(p) && /\d/.test(p);
 
@@ -18,8 +19,8 @@ export default function ChangePassword() {
     if (!ok) setErr(t("errorGeneric"));
   }
   return (
-    <div className="login">
-      <form className="box glass" onSubmit={submit}>
+    <AuthLayout>
+      <form className="box" onSubmit={submit}>
         <h1 style={{ margin: "0 0 6px", fontSize: 22 }}>{t("newPassword")}</h1>
         <p className="muted" style={{ marginTop: 0 }}>{t("mustChange")}</p>
         <div style={{ display: "grid", gap: 14 }}>
@@ -30,6 +31,6 @@ export default function ChangePassword() {
           <button type="button" className="btn" onClick={signOut}>{t("signOut")}</button>
         </div>
       </form>
-    </div>
+    </AuthLayout>
   );
 }

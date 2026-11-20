@@ -5,7 +5,9 @@ export type Lang = "ar" | "en";
 const ar = {
   app: "إدارة السلامة من الحريق", brand: "Talabat Mart",
   // auth
-  username: "اسم المستخدم", password: "كلمة المرور", signIn: "تسجيل الدخول", signingIn: "جارٍ التحقق…", signOut: "تسجيل الخروج",
+  username: "اسم المستخدم", loginId: "رقم الموبايل أو اسم المستخدم", password: "كلمة المرور",
+  loginHero: "سلامة كل فرع،\nفي فحص أسبوعي واحد.", loginSub: "ادخل برقم موبايلك أو اسم المستخدم.", phoneLoginHint: "رقم الموبايل ده هيستخدمه الشخص في الدخول بدل اسم المستخدم.",
+  hello: "أهلاً", pendingShort: "لسه", thisWeek: "الأسبوع ده", doneOf: "اتفحص", allStores: "الكل", showAll: "عرض الكل", signIn: "تسجيل الدخول", signingIn: "جارٍ التحقق…", signOut: "تسجيل الخروج",
   badLogin: "اسم المستخدم أو كلمة المرور غير صحيحة.", tooMany: "محاولات كثيرة. استنى دقيقة وجرّب تاني.", noStaff: "الحساب ده مش مربوط بأي موظف نشط. كلّم مدير النظام.",
   newPassword: "كلمة مرور جديدة", confirmPassword: "تأكيد كلمة المرور", setPassword: "حفظ كلمة المرور", mustChange: "لازم تغيّر كلمة المرور قبل ما تكمل.",
   pwRule: "10 حروف على الأقل وفيها حرف ورقم.", pwMismatch: "كلمتين المرور مش متطابقين.", sessionEnded: "انتهت الجلسة بسبب عدم النشاط. سجّل دخولك تاني.",
@@ -76,7 +78,9 @@ export type TKey = keyof Dict;
 
 const en: Dict = {
   app: "Fire Safety Management", brand: "Talabat Mart",
-  username: "Username", password: "Password", signIn: "Sign in", signingIn: "Checking…", signOut: "Sign out",
+  username: "Username", loginId: "Mobile number or username", password: "Password",
+  loginHero: "Every store safe,\none weekly check.", loginSub: "Sign in with your mobile number or username.", phoneLoginHint: "This person can sign in with this mobile number instead of the username.",
+  hello: "Hello", pendingShort: "To do", thisWeek: "This week", doneOf: "inspected", allStores: "All", showAll: "View all", signIn: "Sign in", signingIn: "Checking…", signOut: "Sign out",
   badLogin: "Wrong username or password.", tooMany: "Too many attempts. Wait a minute and try again.", noStaff: "This login is not linked to an active staff member. Contact the administrator.",
   newPassword: "New password", confirmPassword: "Confirm password", setPassword: "Save password", mustChange: "You need to change your password before continuing.",
   pwRule: "At least 10 characters with a letter and a number.", pwMismatch: "Passwords don't match.", sessionEnded: "Session ended after inactivity. Sign in again.",

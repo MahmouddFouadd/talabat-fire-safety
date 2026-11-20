@@ -17,6 +17,7 @@ const MSG: Record<string, [string, string]> = {
   INVALID_TRANSITION: ["مينفعش تغيّر الحالة بالشكل ده.", "That status change is not allowed."],
   LAST_ADMIN: ["لازم يفضل مدير واحد نشط على الأقل.", "At least one active admin must remain."],
   AUTH_LINK_LOCKED: ["ربط حساب الدخول بيتم من زرار (إنشاء حساب دخول) بس.", "Logins are linked only through “Create login”."],
+  PHONE_TAKEN: ["رقم الموبايل ده مسجّل لمستخدم تاني.", "This mobile number belongs to another user."],
   USERNAME_TAKEN: ["اسم المستخدم ده مستخدم قبل كده.", "That username is taken."],
   INVALID_USERNAME: ["اسم المستخدم: حروف إنجليزي صغيرة وأرقام و . _ - من 3 لـ 32.", "Username: 3–32 lowercase letters, digits, . _ -"],
   WEAK_PASSWORD: ["كلمة المرور ضعيفة: 10 حروف على الأقل وفيها حرف ورقم.", "Weak password: at least 10 characters with a letter and a number."],

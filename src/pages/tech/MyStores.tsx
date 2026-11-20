@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { Shell } from "../../components/Shell";
-import { Empty, ErrorBox, Kpi, Loading, StatusPill, useToast } from "../../components/ui";
+import { Empty, ErrorBox, Loading, StatusPill, useToast } from "../../components/ui";
 import { useInvalidate, useStoreEquipment, useStoreStatus } from "../../lib/api";
 import { useAuth } from "../../lib/auth";
 import { useI18n } from "../../lib/i18n";
@@ -15,6 +15,7 @@ export default function MyStores() {
   const { t, nf, df, lang } = useI18n();
   const { staff } = useAuth(); const nav = useNavigate(); const toast = useToast(); const inv = useInvalidate();
   const st = useStoreStatus(); const eq = useStoreEquipment();
+  const [filter, setFilter] = useState<"all" | "todo" | "issues" | "ok">("all");
   const [outbox, setOutbox] = useState<OutboxItem[]>([]); const [draftStores, setDraftStores] = useState<Set<string>>(new Set()); const [syncing, setSyncing] = useState(false);
 
   // The database (RLS) already returns exactly the stores this technician may work on —
@@ -56,15 +57,28 @@ export default function MyStores() {
           ))}
         </div>
       )}
-      <div className="grid g4" style={{ marginBottom: 16 }}>
-        <Kpi dot="overdue" label={t("st_overdue")} value={count("overdue") + count("never")} />
-        <Kpi dot="pending" label={t("st_pending")} value={count("pending")} />
-        <Kpi dot="issues" label={t("st_issues")} value={count("issues")} />
-        <Kpi dot="ok" label={t("st_ok")} value={count("ok")} />
+      <section className="hero-card" style={{ marginBottom: 16, display: "flex", gap: 18, alignItems: "center", flexWrap: "wrap" }}>
+        <div className="gauge" style={{ ["--p" as string]: mine.length ? Math.round(((count("ok") + count("issues")) / mine.length) * 100) : 0 }}>
+          <div><b className="num">{nf(count("ok") + count("issues"))}</b><span className="code">{t("of")} {nf(mine.length)}</span></div>
+        </div>
+        <div style={{ flex: "1 1 180px", minWidth: 0, display: "grid", gap: 10 }}>
+          <div><span className="code">{t("hello")}</span><div style={{ fontSize: 22, fontWeight: 600 }}>{staff?.full_name}</div>
+            <span className="code">{t("thisWeek")} · {t("doneOf")} {nf(count("ok") + count("issues"))}/{nf(mine.length)}</span></div>
+          <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+            <span className="hero-chip"><i className="dot d-overdue" /><b className="num">{nf(count("overdue") + count("never"))}</b>{t("st_overdue")}</span>
+            <span className="hero-chip"><i className="dot d-pending" /><b className="num">{nf(count("pending"))}</b>{t("pendingShort")}</span>
+            <span className="hero-chip"><i className="dot d-issues" /><b className="num">{nf(count("issues"))}</b>{t("st_issues")}</span>
+          </div>
+        </div>
+      </section>
+      <div className="segpills" role="group" aria-label={t("status")} style={{ marginBottom: 12 }}>
+        {([["all", t("allStores"), mine.length], ["todo", t("pendingShort"), count("overdue") + count("never") + count("pending")], ["issues", t("st_issues"), count("issues")], ["ok", t("st_ok"), count("ok")]] as const).map(([k, label, n]) => (
+          <button key={k} aria-pressed={filter === k} onClick={() => setFilter(k)}>{label} <b className="num">{nf(n)}</b></button>
+        ))}
       </div>
       {st.isLoading ? <Loading /> : st.error ? <ErrorBox error={st.error} onRetry={() => st.refetch()} /> : mine.length === 0 ? <Empty /> : (
         <div className="storelist">
-          {mine.map((s) => {
+          {mine.filter((s) => filter === "all" || (filter === "todo" ? ["overdue", "never", "pending"].includes(s.status) : s.status === filter)).map((s) => {
             const b = eq.data?.find((e) => e.store_code === s.store_code);
             const done = s.status === "ok" || s.status === "issues";
             const queued = outbox.some((o) => o.payload.store_code === s.store_code);

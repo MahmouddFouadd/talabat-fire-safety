@@ -71,7 +71,7 @@ function StaffForm({ s, onClose }: { s: StaffT | null; onClose: () => void }) {
           <Field label={t("fullName")}><input className="input" maxLength={80} value={f.full_name} onChange={(e) => setF({ ...f, full_name: e.target.value })} /></Field>
           <Field label={t("role")}><select className="input" value={f.role} onChange={(e) => setF({ ...f, role: e.target.value as Role })}><option value="technician">{t("technician")}</option><option value="admin">{t("admin")}</option></select></Field>
           <Field label={t("zone")}><select className="input" value={f.zone_id} onChange={(e) => setF({ ...f, zone_id: e.target.value })}><option value="">—</option>{zones.data?.map((z) => <option key={z.id} value={z.id}>{zoneName(z.id)}</option>)}</select></Field>
-          <Field label={t("phone")}><input className="input" dir="ltr" inputMode="tel" maxLength={30} value={f.phone} onChange={(e) => setF({ ...f, phone: e.target.value })} /></Field>
+          <Field label={t("phone")} hint={t("phoneLoginHint")}><input className="input" dir="ltr" inputMode="tel" maxLength={30} value={f.phone} onChange={(e) => setF({ ...f, phone: e.target.value })} /></Field>
         </div>
       </Modal>
     );

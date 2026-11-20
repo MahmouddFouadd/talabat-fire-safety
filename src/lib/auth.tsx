@@ -19,6 +19,20 @@ const Ctx = createContext<AuthState | null>(null);
 
 export const toEmail = (username: string) => `${username.trim().toLowerCase()}@${LOGIN_DOMAIN}`;
 
+/** Arabic-Indic / Persian digits → 0-9 so "٠١٠…" typed on an Arabic keyboard works. */
+export const latinDigits = (v: string) => v.replace(/[\u0660-\u0669\u06F0-\u06F9]/g, (c) => String((c.charCodeAt(0) & 0xf) % 10));
+export const looksLikePhone = (v: string) => /^[+0-9 ()-]{8,20}$/.test(latinDigits(v).trim());
+
+/** A mobile number is resolved to its login e-mail by the database; anything else is a username. */
+async function resolveEmail(identifier: string): Promise<string> {
+  const id = latinDigits(identifier).trim();
+  if (looksLikePhone(id)) {
+    const { data, error } = await supabase.rpc("login_email", { p_identifier: id });
+    if (!error && typeof data === "string" && data) return data;
+  }
+  return toEmail(id);
+}
+
 let lastStaffError = "";
 async function loadStaff(uid: string): Promise<Staff | null> {
   const { data, error } = await supabase.from("staff").select("*").eq("auth_user_id", uid).eq("active", true).maybeSingle();
@@ -78,7 +92,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const signIn: AuthState["signIn"] = async (username, password) => {
     setIdleExpired(false);
-    const { data, error } = await supabase.auth.signInWithPassword({ email: toEmail(username), password });
+    const { data, error } = await supabase.auth.signInWithPassword({ email: await resolveEmail(username), password });
     if (error) return error.status === 429 ? "rate" : "bad";
     const s = await loadStaff(data.user.id);
     if (!s) { const e = lastStaffError; await supabase.auth.signOut(); return e ? `db:${e}` : "nostaff"; }

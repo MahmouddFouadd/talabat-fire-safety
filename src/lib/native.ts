@@ -4,7 +4,7 @@ import { SplashScreen } from "@capacitor/splash-screen";
 
 /** Android shell behaviour: status bar, splash, hardware back button. */
 export async function initNative() {
-  try { await StatusBar.setStyle({ style: Style.Dark }); await StatusBar.setBackgroundColor({ color: "#48101D" }); } catch { /* not supported */ }
+  try { await StatusBar.setStyle({ style: Style.Dark }); await StatusBar.setBackgroundColor({ color: "#12302B" }); } catch { /* not supported */ }
   SplashScreen.hide().catch(() => undefined);
   CapApp.addListener("backButton", ({ canGoBack }) => {
     const overlay = document.querySelector(".overlay");

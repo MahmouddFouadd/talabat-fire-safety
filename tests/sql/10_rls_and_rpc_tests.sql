@@ -174,3 +174,19 @@ select pg_temp.as_user('00000000-0000-0000-0000-000000000002');
 set role authenticated;
 select pg_temp.expect((select count(*) from public.stores where zone_id <> (select zone_id from public.staff where legacy_code='TECH002')) = 0, 'scope=zone: tech2 still sees no other zone');
 reset role;
+-- ── mobile-number login ──
+select pg_temp.as_user('00000000-0000-0000-0000-00000000000a');
+set role authenticated;
+update public.staff set phone = '010 1234 5678' where legacy_code = 'TECH002';
+do $$ begin
+  begin update public.staff set phone = '+201012345678' where legacy_code = 'TECH004';
+  exception when others then if sqlerrm <> 'PHONE_TAKEN' then raise; end if; raise notice 'ok - same mobile number cannot be given to two people'; return; end;
+  raise exception 'TEST FAILED';
+end $$;
+reset role;
+set role anon;
+select pg_temp.expect(public.login_email('+20 101 234 5678') = 'tech002@fs.local', 'phone in +20 format resolves to the login');
+select pg_temp.expect(public.login_email('01012345678') = 'tech002@fs.local', 'phone in 01 format resolves to the login');
+select pg_temp.expect(public.login_email('01099999999') like 'nobody-%@invalid.local', 'unknown phone gets a non-login address');
+select pg_temp.expect(public.login_email('tech002') is null, 'username input is left to the app');
+reset role;

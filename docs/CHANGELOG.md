@@ -1,5 +1,10 @@
 # CHANGELOG
 
+## 1.2.0 — 2026-11-21
+- New visual design: teal→olive hero gradients, white rounded cards, black pill buttons, floating pill navigation, segmented filters; Readex Pro font.
+- talabat mart logo on sign-in, sidebar, app icon and splash screen.
+- Sign in with the mobile number saved on the user (or username) + password; one number per active user.
+
 ## 1.1.0 — 2026-11-20
 - Admin option: technicians see only assigned stores (default) or all stores in their zone.
 - Fixed endless loading after sign-in; 20 s request timeout; explicit API grants for new Supabase projects.
