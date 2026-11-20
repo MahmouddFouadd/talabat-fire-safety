@@ -17,7 +17,9 @@ jobs:
         with: { node-version: 20, cache: npm }
       - uses: actions/setup-java@v4
         with: { distribution: temurin, java-version: 17 }
-      - uses: android-actions/setup-android@v3
+      # GitHub's ubuntu runners already ship the Android SDK (ANDROID_HOME); Gradle fetches any missing platform itself.
+      - name: Check Android SDK
+        run: echo "ANDROID_HOME=$ANDROID_HOME" && ls "$ANDROID_HOME/platforms" | tail -3
       - run: npm ci
       - run: npm run build
       - run: npx cap sync android
