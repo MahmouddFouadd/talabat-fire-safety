@@ -45,9 +45,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setStaff(data.session ? await loadStaff(data.session.user.id) : null);
       setLoading(false);
     });
-    const { data: sub } = supabase.auth.onAuthStateChange(async (_e, s) => {
+    // Never await Supabase calls inside this callback: supabase-js holds its auth lock while the
+    // callback runs, so a query here deadlocks every later request (endless "Loading…").
+    const { data: sub } = supabase.auth.onAuthStateChange((_e, s) => {
       setSession(s);
-      setStaff(s ? await loadStaff(s.user.id) : null);
+      setTimeout(async () => { setStaff(s ? await loadStaff(s.user.id) : null); }, 0);
     });
     return () => { alive = false; sub.subscription.unsubscribe(); };
   }, []);
