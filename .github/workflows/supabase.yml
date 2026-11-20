@@ -40,8 +40,8 @@ jobs:
           # newer CLI: target the linked remote project explicitly; the password is read from SUPABASE_DB_PASSWORD
           supabase migration list --linked || true
           supabase db push --linked --include-all --yes
-      - name: 3. Deploy Edge Function admin-users
-        run: supabase functions deploy admin-users --yes
+      - name: 3. Deploy Edge Functions (admin-users, pin-login)
+        run: supabase functions deploy --yes
 
       - name: 4. Close public sign-up (accounts are created by admins only)
         run: |

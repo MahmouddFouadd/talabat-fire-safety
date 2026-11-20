@@ -70,3 +70,10 @@ The 5 pilot PINs are treated as **compromised**:
 | S15 | ✅ Fixed — CSV escaping + BOM |
 | CDN | ⚠️ Google Fonts still loaded from Google (falls back to system fonts offline); all JS bundled locally |
 | Secret key shared in chat | ⚠️ Rotate it in Supabase (not used anywhere in this repository) |
+
+## PIN sign-in (added 1.3.0)
+- Optional second method; the password keeps working. PIN = 4–6 digits, sequences and repeats refused.
+- Stored as bcrypt (`crypt`/`gen_salt('bf')`) in `staff_pins` — RLS on, no policies, no grants to anon/authenticated.
+- Checked only by `pin_check()` (service role) inside the `pin-login` Edge Function; unknown users get the same answer and the same bcrypt work.
+- Lockout: 5 wrong → 15 min; 15 in a row → disabled until the user sets a new PIN after a password sign-in or an admin resets it. Every success/failure is audited.
+- On success the function creates a one-time sign-in token server-side and exchanges it immediately for a normal Supabase session; nothing is e-mailed or texted.

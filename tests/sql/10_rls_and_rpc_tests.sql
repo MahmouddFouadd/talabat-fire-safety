@@ -190,3 +190,45 @@ select pg_temp.expect(public.login_email('01012345678') = 'tech002@fs.local', 'p
 select pg_temp.expect(public.login_email('01099999999') like 'nobody-%@invalid.local', 'unknown phone gets a non-login address');
 select pg_temp.expect(public.login_email('tech002') is null, 'username input is left to the app');
 reset role;
+-- ── PIN sign-in ──
+select pg_temp.as_user('00000000-0000-0000-0000-000000000002');
+set role authenticated;
+do $$ begin
+  begin perform public.set_my_pin('1234'); exception when others then if sqlerrm <> 'WEAK_PIN' then raise; end if; raise notice 'ok - sequential PIN rejected'; return; end;
+  raise exception 'TEST FAILED';
+end $$;
+do $$ begin
+  begin perform public.set_my_pin('7777'); exception when others then if sqlerrm <> 'WEAK_PIN' then raise; end if; raise notice 'ok - repeated-digit PIN rejected'; return; end;
+  raise exception 'TEST FAILED';
+end $$;
+select public.set_my_pin('2580');
+select pg_temp.expect((public.my_pin_status()->>'has_pin')::boolean, 'technician set own PIN');
+do $$ begin
+  begin perform count(*) from public.staff_pins; raise exception 'TEST FAILED: pins readable';
+  exception when insufficient_privilege then raise notice 'ok - PIN hashes not readable by app users'; end;
+  begin perform public.pin_check('tech002','2580'); raise exception 'TEST FAILED: pin_check callable';
+  exception when insufficient_privilege then raise notice 'ok - pin_check not callable by app users'; end;
+end $$;
+reset role;
+set role anon;
+do $$ begin
+  begin perform public.pin_check('tech002','2580'); raise exception 'TEST FAILED';
+  exception when insufficient_privilege then raise notice 'ok - pin_check not callable by anon'; end;
+end $$;
+reset role;
+set request.jwt.claim.role = 'service_role';
+set role service_role;
+select pg_temp.expect((public.pin_check('tech002','2580')->>'email') = 'tech002@fs.local', 'correct PIN with username returns login');
+select pg_temp.expect((public.pin_check('+20 10 1234 5678','2580')->>'email') = 'tech002@fs.local', 'correct PIN with mobile number returns login');
+select pg_temp.expect((public.pin_check('nobody','2580')->>'error') = 'BAD', 'unknown user gives the same BAD answer');
+select public.pin_check('tech002','0000') from generate_series(1,5);
+select pg_temp.expect((public.pin_check('tech002','2580')->>'error') = 'LOCKED', '5 wrong PINs lock the account, even for the right PIN');
+reset role; reset request.jwt.claim.role;
+select pg_temp.as_user('00000000-0000-0000-0000-00000000000a');
+set role authenticated;
+select public.admin_set_pin((select id from public.staff where legacy_code='TECH002'), '3691');
+select pg_temp.expect((select count(*) from public.admin_pin_list()) = 1, 'admin reset the PIN (unlocks it)');
+reset role;
+set role service_role;
+select pg_temp.expect((public.pin_check('tech002','3691')->>'ok')::boolean, 'new PIN from admin works');
+reset role;

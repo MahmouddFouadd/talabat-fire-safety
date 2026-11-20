@@ -11,6 +11,7 @@ interface AuthState {
   mustChangePassword: boolean;
   idleExpired: boolean;
   signIn: (username: string, password: string) => Promise<"ok" | "bad" | "rate" | "nostaff" | `db:${string}`>;
+  signInWithPin: (identifier: string, pin: string) => Promise<"ok" | "bad" | "locked" | "nostaff" | "error">;
   signOut: () => Promise<void>;
   changePassword: (pw: string) => Promise<boolean>;
 }
@@ -92,10 +93,31 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const signIn: AuthState["signIn"] = async (username, password) => {
     setIdleExpired(false);
+    sessionStorage.setItem("fs-login-method", "password");
     const { data, error } = await supabase.auth.signInWithPassword({ email: await resolveEmail(username), password });
     if (error) return error.status === 429 ? "rate" : "bad";
     const s = await loadStaff(data.user.id);
     if (!s) { const e = lastStaffError; await supabase.auth.signOut(); return e ? `db:${e}` : "nostaff"; }
+    setStaff(s);
+    localStorage.setItem("fs-last-activity", String(Date.now()));
+    return "ok";
+  };
+
+  const signInWithPin: AuthState["signInWithPin"] = async (identifier, pin) => {
+    setIdleExpired(false);
+    const { data, error } = await supabase.functions.invoke("pin-login", { body: { identifier: latinDigits(identifier).trim(), pin: latinDigits(pin) } });
+    if (error) {
+      let code = "";
+      try { code = (await (error as { context?: Response }).context?.json())?.error ?? ""; } catch { /* ignore */ }
+      return code === "LOCKED" ? "locked" : code === "BAD" ? "bad" : "error";
+    }
+    const tokens = data as { access_token?: string; refresh_token?: string };
+    if (!tokens?.access_token || !tokens.refresh_token) return "error";
+    sessionStorage.setItem("fs-login-method", "pin");
+    const { data: sd, error: se } = await supabase.auth.setSession({ access_token: tokens.access_token, refresh_token: tokens.refresh_token });
+    if (se || !sd.user) return "error";
+    const s = await loadStaff(sd.user.id);
+    if (!s) { await supabase.auth.signOut(); return "nostaff"; }
     setStaff(s);
     localStorage.setItem("fs-last-activity", String(Date.now()));
     return "ok";
@@ -107,9 +129,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     return !error;
   };
 
-  const mustChangePassword = !!session?.user.user_metadata?.must_change_password;
+  // someone who signed in with a PIN is not forced to set a password (PIN-only use is allowed)
+  const mustChangePassword = !!session?.user.user_metadata?.must_change_password && sessionStorage.getItem("fs-login-method") !== "pin";
 
-  return <Ctx.Provider value={{ session, staff, loading, mustChangePassword, idleExpired, signIn, signOut, changePassword }}>{children}</Ctx.Provider>;
+  return <Ctx.Provider value={{ session, staff, loading, mustChangePassword, idleExpired, signIn, signInWithPin, signOut, changePassword }}>{children}</Ctx.Provider>;
 }
 
 export function useAuth() {

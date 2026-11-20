@@ -5,6 +5,7 @@ import { useAuth } from "../lib/auth";
 import { useDashboard } from "../lib/api";
 import { Icon } from "./icons";
 import { Modal } from "./ui";
+import { PinDialog } from "./PinDialog";
 
 type Item = { to: string; key: TKey; icon: string };
 const ADMIN: Item[] = [
@@ -58,6 +59,7 @@ export function Shell({ title, actions, children }: { title: string; actions?: R
   const loc = useLocation();
   const nav = useNavigate();
   const [more, setMore] = useState(false);
+  const [pinOpen, setPinOpen] = useState(false);
   const mobileMain = isAdmin ? items.slice(0, 4) : items;
   const isActive = (to: string) => (to === "/admin" || to === "/tech" ? loc.pathname === to || (to === "/tech" && loc.pathname.startsWith("/tech/inspect")) : loc.pathname.startsWith(to));
 
@@ -94,6 +96,7 @@ export function Shell({ title, actions, children }: { title: string; actions?: R
           <div className="tools">
             {actions}
             <Tools />
+            <button className="iconbtn" onClick={() => setPinOpen(true)} aria-label={t("pinTitle")} title={t("pinTitle")}><Icon name="key" size={18} /></button>
             <button className="iconbtn bn-only" onClick={signOut} aria-label={t("signOut")}><Icon name="logout" size={18} /></button>
           </div>
         </div>
@@ -114,6 +117,7 @@ export function Shell({ title, actions, children }: { title: string; actions?: R
         )}
       </nav>
 
+      {pinOpen && <PinDialog onClose={() => setPinOpen(false)} />}
       {more && (
         <Modal title={t("more")} onClose={() => setMore(false)}>
           <div style={{ display: "grid", gap: 4 }}>

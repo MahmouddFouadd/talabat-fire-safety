@@ -7,6 +7,7 @@ import { useAuth } from "../../lib/auth";
 import { useI18n } from "../../lib/i18n";
 import { drafts, flushOutbox, listOutbox, removeOutbox, type OutboxItem } from "../../lib/offline";
 import { errorText } from "../../lib/errors";
+import { PinDialog, usePinStatus } from "../../components/PinDialog";
 import type { StoreStatus } from "../../lib/types";
 
 const ORDER: Record<StoreStatus, number> = { overdue: 0, never: 1, pending: 2, issues: 3, ok: 4 };
@@ -15,6 +16,9 @@ export default function MyStores() {
   const { t, nf, df, lang } = useI18n();
   const { staff } = useAuth(); const nav = useNavigate(); const toast = useToast(); const inv = useInvalidate();
   const st = useStoreStatus(); const eq = useStoreEquipment();
+  const pinStatus = usePinStatus();
+  const [pinOpen, setPinOpen] = useState(false);
+  const [pinLater, setPinLater] = useState(() => localStorage.getItem("fs-pin-later") === "1");
   const [filter, setFilter] = useState<"all" | "todo" | "issues" | "ok">("all");
   const [outbox, setOutbox] = useState<OutboxItem[]>([]); const [draftStores, setDraftStores] = useState<Set<string>>(new Set()); const [syncing, setSyncing] = useState(false);
 
@@ -57,6 +61,16 @@ export default function MyStores() {
           ))}
         </div>
       )}
+      {pinStatus.data && !pinStatus.data.has_pin && !pinLater && (
+        <div className="banner info" style={{ justifyContent: "space-between" }}>
+          <span><b>{t("pinSetup")}</b> — {t("pinSetupHint")}</span>
+          <span style={{ display: "flex", gap: 8 }}>
+            <button className="btn" onClick={() => { localStorage.setItem("fs-pin-later", "1"); setPinLater(true); }}>{t("later")}</button>
+            <button className="btn pri" onClick={() => setPinOpen(true)}>{t("pin")}</button>
+          </span>
+        </div>
+      )}
+      {pinOpen && <PinDialog onClose={() => setPinOpen(false)} />}
       <section className="hero-card" style={{ marginBottom: 16, display: "flex", gap: 18, alignItems: "center", flexWrap: "wrap" }}>
         <div className="gauge" style={{ ["--p" as string]: mine.length ? Math.round(((count("ok") + count("issues")) / mine.length) * 100) : 0 }}>
           <div><b className="num">{nf(count("ok") + count("issues"))}</b><span className="code">{t("of")} {nf(mine.length)}</span></div>

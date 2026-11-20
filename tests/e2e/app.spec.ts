@@ -1,5 +1,5 @@
 import { test, expect, type Page } from "@playwright/test";
-import { login } from "./mock";
+import { login, mockSupabase } from "./mock";
 
 async function noHorizontalOverflow(page: Page) {
   const [sw, cw] = await page.evaluate(() => [document.documentElement.scrollWidth, document.documentElement.clientWidth]);
@@ -56,4 +56,18 @@ test("technician sees only own stores and can complete an inspection", async ({ 
   await noHorizontalOverflow(page);
   await page.getByRole("button", { name: "إرسال الفحص" }).click();
   await expect(page.getByText("INS-TEST-0001")).toBeVisible();
+});
+
+test("technician can sign in with mobile/username + PIN", async ({ page }) => {
+  await mockSupabase(page, "tech");
+  await page.goto("./");
+  await page.getByRole("button", { name: "PIN" }).click();
+  await page.getByLabel(/اسم المستخدم/).fill("01012345678");
+  await page.getByLabel(/PIN/).fill("1111");
+  await page.getByRole("button", { name: "تسجيل الدخول" }).click();
+  await expect(page.getByRole("alert")).toBeVisible();
+  await page.getByLabel(/PIN/).fill("2580");
+  await page.getByRole("button", { name: "تسجيل الدخول" }).click();
+  await expect(page.locator("main h1")).toContainText("(13)");
+  await expect(page.getByText("فعّل الدخول السريع بـ PIN")).toBeVisible();
 });

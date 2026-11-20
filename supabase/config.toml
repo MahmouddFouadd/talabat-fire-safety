@@ -2,3 +2,7 @@ project_id = "pwijwlcqtjoaqxjnygwh"
 
 [functions.admin-users]
 verify_jwt = true
+
+# anonymous on purpose: this IS the sign-in endpoint (PIN checked in the database with lockout)
+[functions.pin-login]
+verify_jwt = false

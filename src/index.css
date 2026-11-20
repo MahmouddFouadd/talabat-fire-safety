@@ -134,6 +134,7 @@ textarea.input{min-height:88px;resize:vertical}
 .field .input{border:0;background:transparent;padding:2px 0;min-height:34px;font-size:16px;color:var(--ink);border-radius:8px;box-shadow:none}
 .field textarea.input{min-height:72px}
 .field:focus-within{border-color:var(--ember)}
+.field .input:focus-visible{outline:none}
 .field small{font-weight:400;color:var(--ink-3)}
 .field .err{color:var(--alarm);font-weight:400;font-size:12.5px}
 .filters{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:16px;align-items:center}

@@ -7,6 +7,8 @@ import { supabase } from "../../lib/supabase";
 import { useAuth } from "../../lib/auth";
 import { useI18n } from "../../lib/i18n";
 import { strong } from "../ChangePassword";
+import { PinDialog } from "../../components/PinDialog";
+import { useQuery } from "@tanstack/react-query";
 import type { Role, Staff as StaffT } from "../../lib/types";
 
 export default function Staff() {
@@ -15,6 +17,8 @@ export default function Staff() {
   const inv = useInvalidate(); const toast = useToast(); const toastErr = useErrorToast(); const { ask, node } = useConfirm();
   const [edit, setEdit] = useState<StaffT | "new" | null>(null);
   const [login, setLogin] = useState<{ s: StaffT; mode: "create" | "reset" } | null>(null);
+  const [pinFor, setPinFor] = useState<StaffT | null>(null);
+  const pins = useQuery({ queryKey: ["pin-list"], queryFn: async () => { const { data, error } = await supabase.rpc("admin_pin_list"); if (error) throw error; return new Set((data as string[]) ?? []); } });
   const zoneName = (id: string | null) => { const z = zones.data?.find((x) => x.id === id); return z ? (lang === "ar" ? z.name_ar : z.name_en) : "—"; };
 
   async function toggle(s: StaffT) {
@@ -34,11 +38,12 @@ export default function Staff() {
                 <td className="mh">{t(s.role === "admin" ? "admin" : "technician")}</td>
                 <td className="mh">{zoneName(s.zone_id)}</td>
                 <td className="mh num">{nf(stores.data?.filter((x) => x.assigned_tech_id === s.id).length ?? 0)}</td>
-                <td className="mh">{s.auth_user_id ? <span className="pill p-ok">✓</span> : <span className="pill p-none">{t("noLogin")}</span>}</td>
+                <td className="mh">{s.auth_user_id ? <span className="pill p-ok">✓</span> : <span className="pill p-none">{t("noLogin")}</span>} {pins.data?.has(s.id) && <span className="pill p-info">PIN</span>}</td>
                 <td><span className={`pill ${s.active ? "p-ok" : "p-none"}`}>{t(s.active ? "active" : "inactive")}</span></td>
                 <td><div className="flow">
                   <button className="btn" onClick={() => setEdit(s)}>{t("edit")}</button>
                   <button className="btn" onClick={() => setLogin({ s, mode: s.auth_user_id ? "reset" : "create" })}>{t(s.auth_user_id ? "resetPassword" : "createLogin")}</button>
+                  {s.auth_user_id && <button className="btn" onClick={() => setPinFor(s)}>{t("pin")}</button>}
                   {s.id !== me?.id && <button className="btn danger" onClick={() => toggle(s)}>{t(s.active ? "deactivate" : "activate")}</button>}
                 </div></td>
               </tr>))}</tbody>
@@ -46,6 +51,7 @@ export default function Staff() {
         </div>
       )}
       {edit && <StaffForm s={edit === "new" ? null : edit} onClose={() => setEdit(null)} />}
+      {pinFor && <PinDialog staffId={pinFor.id} name={pinFor.full_name} onClose={() => setPinFor(null)} />}
       {login && <LoginForm s={login.s} mode={login.mode} onClose={() => setLogin(null)} />}
       {node}
     </Shell>

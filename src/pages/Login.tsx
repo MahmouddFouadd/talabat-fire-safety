@@ -47,9 +47,11 @@ export function AuthLayout({ children }: { children: ReactNode }) {
 
 export default function Login() {
   const { t, lang } = useI18n();
-  const { signIn, idleExpired } = useAuth();
+  const { signIn, signInWithPin, idleExpired } = useAuth();
   const { data: ps } = usePublicSettings();
-  const [u, setU] = useState(""); const [p, setP] = useState("");
+  // remember the number/username and the chosen method on this device (never the secret)
+  const [mode, setMode] = useState<"password" | "pin">(() => (localStorage.getItem("fs-login-mode") as "pin") === "pin" ? "pin" : "password");
+  const [u, setU] = useState(() => localStorage.getItem("fs-login-id") ?? ""); const [p, setP] = useState("");
   const [err, setErr] = useState(""); const [busy, setBusy] = useState(false);
   const msg = (lang === "ar" ? ps?.login_message_ar : ps?.login_message_en) || t("loginSub");
 
@@ -57,10 +59,16 @@ export default function Login() {
     e.preventDefault();
     if (!u.trim() || !p) return;
     setBusy(true); setErr("");
+    localStorage.setItem("fs-login-id", u.trim()); localStorage.setItem("fs-login-mode", mode);
     try {
-      const r = await signIn(u, p);
-      if (r.startsWith("db:")) setErr(`${t("errorGeneric")} (${r.slice(3)})`);
-      else if (r !== "ok") setErr(t(r === "rate" ? "tooMany" : r === "nostaff" ? "noStaff" : "badLogin"));
+      if (mode === "pin") {
+        const r = await signInWithPin(u, p);
+        if (r !== "ok") setErr(t(r === "locked" ? "pinLocked" : r === "bad" ? "pinBad" : r === "nostaff" ? "noStaff" : "errorGeneric"));
+      } else {
+        const r = await signIn(u, p);
+        if (r.startsWith("db:")) setErr(`${t("errorGeneric")} (${r.slice(3)})`);
+        else if (r !== "ok") setErr(t(r === "rate" ? "tooMany" : r === "nostaff" ? "noStaff" : "badLogin"));
+      }
     } catch { setErr(t("errorGeneric")); }
     setBusy(false);
   }
@@ -71,16 +79,27 @@ export default function Login() {
         <h2 style={{ margin: "0 0 4px", fontSize: 24, fontWeight: 600 }}>{t("signIn")}</h2>
         <p className="muted" style={{ margin: "0 0 18px" }}>{msg}</p>
         {idleExpired && <div className="banner info">{t("sessionEnded")}</div>}
+        <div className="seg" role="group" aria-label={t("signIn")} style={{ marginBottom: 14 }}>
+          <button type="button" aria-pressed={mode === "password"} onClick={() => { setMode("password"); setP(""); setErr(""); }}>{t("byPassword")}</button>
+          <button type="button" aria-pressed={mode === "pin"} onClick={() => { setMode("pin"); setP(""); setErr(""); }}>{t("byPin")}</button>
+        </div>
         <div style={{ display: "grid", gap: 12 }}>
           <label className="field">{t("loginId")}
             <input className="input" autoComplete="username" autoCapitalize="none" spellCheck={false} dir="ltr" inputMode="text"
               placeholder="01xxxxxxxxx" value={u} onChange={(e) => setU(e.target.value)} required />
           </label>
-          <label className="field">{t("password")}
-            <input className="input" type="password" autoComplete="current-password" dir="ltr" value={p} onChange={(e) => setP(e.target.value)} required />
-          </label>
+          {mode === "password" ? (
+            <label className="field">{t("password")}
+              <input className="input" type="password" autoComplete="current-password" dir="ltr" value={p} onChange={(e) => setP(e.target.value)} required />
+            </label>
+          ) : (
+            <label className="field">{t("pinLabel")}
+              <input className="input num" type="password" inputMode="numeric" autoComplete="one-time-code" pattern="[0-9]*" maxLength={6} dir="ltr"
+                style={{ fontSize: 26, letterSpacing: 10, textAlign: "center" }} value={p} onChange={(e) => setP(e.target.value.replace(/[^0-9\u0660-\u0669]/g, ""))} required />
+            </label>
+          )}
           {err && <div className="banner bad" role="alert">{err}</div>}
-          <button className="btn pri lg" disabled={busy || !u.trim() || !p}>{busy ? t("signingIn") : t("signIn")}</button>
+          <button className="btn pri lg" disabled={busy || !u.trim() || !p || (mode === "pin" && p.length < 4)}>{busy ? t("signingIn") : t("signIn")}</button>
         </div>
       </form>
     </AuthLayout>

@@ -54,6 +54,11 @@ export async function mockSupabase(page: Page, who: keyof typeof USERS) {
     const json = (body: unknown, status = 200, headers: Record<string, string> = {}) =>
       route.fulfill({ status, contentType: "application/json", headers: { "access-control-allow-origin": "*", ...headers }, body: JSON.stringify(body) });
     if (req.method() === "OPTIONS") return route.fulfill({ status: 200, headers: { "access-control-allow-origin": "*", "access-control-allow-headers": "*", "access-control-allow-methods": "*" } });
+    if (url.pathname.startsWith("/functions/v1/pin-login")) {
+      const b = JSON.parse(req.postData() ?? "{}");
+      if (b.pin === "2580") { const s = session(uid); return json({ access_token: s.access_token, refresh_token: s.refresh_token }); }
+      return json({ error: "BAD" }, 401);
+    }
     if (url.pathname.startsWith("/auth/v1/token")) return json(session(uid));
     if (url.pathname.startsWith("/auth/v1/user")) return json(session(uid).user);
     if (url.pathname.startsWith("/auth/v1/logout")) return route.fulfill({ status: 204 });

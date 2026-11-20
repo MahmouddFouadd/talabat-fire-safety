@@ -1,5 +1,9 @@
 # CHANGELOG
 
+## 1.3.0 — 2026-11-21
+- Sign in with a PIN (4–6 digits) as an alternative to the password, with mobile number or username. PINs are bcrypt-hashed in a table no app role can read; 5 wrong tries lock it for 15 minutes, 15 disable it until reset. Users set their own PIN (key button); admins can set or remove a user's PIN.
+- New Edge Function `pin-login` (anonymous sign-in endpoint).
+
 ## 1.2.0 — 2026-11-21
 - New visual design: teal→olive hero gradients, white rounded cards, black pill buttons, floating pill navigation, segmented filters; Readex Pro font.
 - talabat mart logo on sign-in, sidebar, app icon and splash screen.
