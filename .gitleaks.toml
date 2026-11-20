@@ -1,0 +1,6 @@
+[extend]
+useDefault = true
+[allowlist]
+description = "Public Supabase anon key (safe by design; protection is RLS)."
+regexes = ['''eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9\.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InB3aWp3bGNxdGpvYXF4am55Z3doIiwicm9sZSI6ImFub24i[^"]*''']
+paths = ['''tests/e2e/fixtures/.*''']

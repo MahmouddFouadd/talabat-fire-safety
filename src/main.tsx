@@ -1,0 +1,36 @@
+import { StrictMode } from "react";
+import { createRoot } from "react-dom/client";
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { registerSW } from "virtual:pwa-register";
+import { Capacitor } from "@capacitor/core";
+import App from "./App";
+import { I18nProvider } from "./lib/i18n";
+import { AuthProvider } from "./lib/auth";
+import { ToastProvider } from "./components/ui";
+import "./index.css";
+
+const theme = localStorage.getItem("fs-theme");
+if (theme) document.documentElement.setAttribute("data-theme", theme);
+
+const qc = new QueryClient({ defaultOptions: { queries: { staleTime: 30_000, refetchOnWindowFocus: false, retry: 1 } } });
+
+if (Capacitor.isNativePlatform()) {
+  import("./lib/native").then((m) => m.initNative());
+} else {
+  // PWA: prompt-based update so a technician never loses a half-filled form to a silent reload
+  const update = registerSW({
+    onNeedRefresh() { if (confirm(document.documentElement.lang === "ar" ? "فيه تحديث جديد. تحدّث دلوقتي؟" : "A new version is available. Update now?")) update(true); },
+  });
+}
+
+createRoot(document.getElementById("root")!).render(
+  <StrictMode>
+    <QueryClientProvider client={qc}>
+      <I18nProvider>
+        <ToastProvider>
+          <AuthProvider><App /></AuthProvider>
+        </ToastProvider>
+      </I18nProvider>
+    </QueryClientProvider>
+  </StrictMode>
+);
