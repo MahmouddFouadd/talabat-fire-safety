@@ -1,10 +1,19 @@
 name: Deploy database & functions (manual)
+# One run does everything: migrations → Edge Function → close public sign-up → first admin → verification.
+# Safe to run again: migrations are idempotent, the admin step skips if an admin is already linked.
 on:
   workflow_dispatch:
     inputs:
       confirm:
-        description: 'Type DEPLOY to apply migrations to the production Supabase project'
+        description: "Type DEPLOY to apply to the production Supabase project"
         required: true
+      admin_username:
+        description: "First admin username (only used if no admin exists yet)"
+        required: false
+        default: "admin01"
+      admin_password:
+        description: "First admin temporary password (min 10 chars, letters + digits). Changed at first sign-in."
+        required: false
 permissions: { contents: read }
 jobs:
   deploy:
@@ -14,12 +23,69 @@ jobs:
       SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
       SUPABASE_DB_PASSWORD: ${{ secrets.SUPABASE_DB_PASSWORD }}
       PROJECT_REF: ${{ vars.SUPABASE_PROJECT_REF || 'pwijwlcqtjoaqxjnygwh' }}
+      LOGIN_DOMAIN: fs.local
     steps:
       - uses: actions/checkout@v4
+      - name: Check secrets
+        run: |
+          [ -n "$SUPABASE_ACCESS_TOKEN" ] || { echo "::error::Secret SUPABASE_ACCESS_TOKEN is missing"; exit 1; }
+          [ -n "$SUPABASE_DB_PASSWORD" ] || { echo "::error::Secret SUPABASE_DB_PASSWORD is missing"; exit 1; }
       - uses: supabase/setup-cli@v1
-        with: { version: 2.0.0 }
-      - run: supabase link --project-ref "$PROJECT_REF" -p "$SUPABASE_DB_PASSWORD"
-      - name: Show pending migrations
-        run: supabase migration list -p "$SUPABASE_DB_PASSWORD"
-      - run: supabase db push -p "$SUPABASE_DB_PASSWORD"
-      - run: supabase functions deploy admin-users --project-ref "$PROJECT_REF"
+        with: { version: latest }
+
+      - name: 1. Link project
+        run: supabase link --project-ref "$PROJECT_REF" -p "$SUPABASE_DB_PASSWORD"
+      - name: 2. Apply migrations
+        run: |
+          supabase migration list -p "$SUPABASE_DB_PASSWORD" || true
+          supabase db push -p "$SUPABASE_DB_PASSWORD" --include-all
+      - name: 3. Deploy Edge Function admin-users
+        run: supabase functions deploy admin-users --project-ref "$PROJECT_REF"
+
+      - name: 4. Close public sign-up (accounts are created by admins only)
+        run: |
+          code=$(curl -s -o /tmp/auth.json -w "%{http_code}" -X PATCH "https://api.supabase.com/v1/projects/$PROJECT_REF/config/auth" \
+            -H "Authorization: Bearer $SUPABASE_ACCESS_TOKEN" -H "Content-Type: application/json" \
+            -d '{"disable_signup": true, "external_email_enabled": true, "mailer_autoconfirm": false}')
+          echo "HTTP $code"; [ "$code" -lt 300 ] || { cat /tmp/auth.json; exit 1; }
+
+      - name: 5. Create and link the first admin (skipped if one exists)
+        env:
+          ADMIN_USER: ${{ inputs.admin_username }}
+          ADMIN_PASS: ${{ inputs.admin_password }}
+        run: |
+          echo "::add-mask::$ADMIN_PASS"
+          q() { curl -s -X POST "https://api.supabase.com/v1/projects/$PROJECT_REF/database/query" \
+                  -H "Authorization: Bearer $SUPABASE_ACCESS_TOKEN" -H "Content-Type: application/json" \
+                  -d "$(jq -n --arg q "$1" '{query:$q}')"; }
+          linked=$(q "select count(*)::int as n from public.staff where role='admin' and auth_user_id is not null" | jq -r '.[0].n')
+          echo "admins already linked: $linked"
+          if [ "$linked" != "0" ]; then echo "Admin exists — skipping."; exit 0; fi
+          [ -n "$ADMIN_PASS" ] || { echo "::error::No admin yet: run again and fill admin_password"; exit 1; }
+          echo "$ADMIN_PASS" | grep -Eq '^.{10,72}$' && echo "$ADMIN_PASS" | grep -q '[A-Za-z]' && echo "$ADMIN_PASS" | grep -q '[0-9]' \
+            || { echo "::error::admin_password must be 10+ characters with letters and digits"; exit 1; }
+          echo "$ADMIN_USER" | grep -Eq '^[a-z0-9._-]{3,32}$' || { echo "::error::admin_username: 3-32 lowercase letters/digits/._-"; exit 1; }
+          SR=$(supabase projects api-keys --project-ref "$PROJECT_REF" -o json | jq -r '.[] | select(.name=="service_role") | .api_key')
+          [ -n "$SR" ] && [ "$SR" != "null" ] || { echo "::error::Could not read the service_role key"; exit 1; }
+          echo "::add-mask::$SR"
+          EMAIL="$ADMIN_USER@$LOGIN_DOMAIN"
+          body=$(jq -n --arg e "$EMAIL" --arg p "$ADMIN_PASS" '{email:$e,password:$p,email_confirm:true,user_metadata:{must_change_password:true}}')
+          code=$(curl -s -o /tmp/u.json -w "%{http_code}" -X POST "https://$PROJECT_REF.supabase.co/auth/v1/admin/users" \
+                   -H "apikey: $SR" -H "Authorization: Bearer $SR" -H "Content-Type: application/json" -d "$body")
+          echo "create auth user: HTTP $code"
+          if [ "$code" -ge 300 ] && ! grep -qi "already" /tmp/u.json; then jq 'del(.user)' /tmp/u.json; exit 1; fi
+          res=$(q "select public.bootstrap_admin('$EMAIL') as r")
+          echo "$res" | jq .
+          echo "$res" | grep -q "OK" || exit 1
+          echo "### First admin: sign in with username **$ADMIN_USER** (you will be asked to change the password)" >> "$GITHUB_STEP_SUMMARY"
+
+      - name: 6. Verify
+        run: |
+          q() { curl -s -X POST "https://api.supabase.com/v1/projects/$PROJECT_REF/database/query" \
+                  -H "Authorization: Bearer $SUPABASE_ACCESS_TOKEN" -H "Content-Type: application/json" \
+                  -d "$(jq -n --arg q "$1" '{query:$q}')"; }
+          r=$(q "select (select count(*) from public.zones) zones, (select count(*) from public.staff) staff, (select count(*) from public.stores) stores, (select count(*) from public.store_equipment) store_equipment, (select count(*) from public.equipment_types) equipment_types, (select count(*) from public.staff where role='admin' and auth_user_id is not null) admins_linked, (select bool_and(relrowsecurity) from pg_class where relnamespace='public'::regnamespace and relkind='r') rls_on_all_tables")
+          echo "$r" | jq .
+          { echo "| check | value | expected |"; echo "|---|---|---|";
+            echo "$r" | jq -r '.[0] | "| zones | \(.zones) | 4 |\n| staff | \(.staff) | 5 |\n| stores | \(.stores) | 66 |\n| store_equipment | \(.store_equipment) | 54 |\n| equipment_types | \(.equipment_types) | 6 |\n| admins linked | \(.admins_linked) | ≥1 |\n| RLS on all tables | \(.rls_on_all_tables) | true |"'; } >> "$GITHUB_STEP_SUMMARY"
+          echo "$r" | jq -e '.[0] | .stores==66 and .store_equipment==54 and .rls_on_all_tables==true' > /dev/null
