@@ -41,7 +41,7 @@ jobs:
           supabase migration list --linked || true
           supabase db push --linked --include-all --yes
       - name: 3. Deploy Edge Function admin-users
-        run: supabase functions deploy admin-users --project-ref "$PROJECT_REF"
+        run: supabase functions deploy admin-users --yes
 
       - name: 4. Close public sign-up (accounts are created by admins only)
         run: |
