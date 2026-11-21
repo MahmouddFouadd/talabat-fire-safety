@@ -52,6 +52,7 @@ export default function Inspect() {
   const [busy, setBusy] = useState(false);
   const [result, setResult] = useState<SubmitResult | "queued" | null>(null);
   const loaded = useRef(false);
+  const submitting = useRef(false);
 
   useEffect(() => {
     if (loaded.current || !staff || !base || !storeItems.data || !types.data) return;
@@ -113,13 +114,18 @@ export default function Inspect() {
   }
 
   async function submit() {
+    if (submitting.current) return;
     for (const s of steps) { const e = validate(s); if (e) { setStep(steps.indexOf(s)); setErr(e); return; } }
     if (doneThisWeek && !(isAdmin && (p!.override_reason ?? "").trim())) { setErr(t("duplicateWeek")); return; }
     const payload: InspectionPayload = { ...p!, override: doneThisWeek && isAdmin ? true : undefined };
-    setBusy(true); setErr("");
+    submitting.current = true; setBusy(true); setErr("");
+    try { await sendOrQueue(payload); } finally { submitting.current = false; setBusy(false); }
+  }
+
+  async function sendOrQueue(payload: InspectionPayload) {
     if (!navigator.onLine) {
       await enqueue({ payload, owner: staff!.id, queuedAt: Date.now(), attempts: 0, storeName: store!.name });
-      setBusy(false); setResult("queued"); return;
+      setResult("queued"); return;
     }
     try {
       const r = await submitPayload(payload);
@@ -127,12 +133,13 @@ export default function Inspect() {
       await inv("store-status", "inspections", "issues", "dashboard", "latest-per-store");
       setResult(r);
     } catch (e) {
+      // NETWORK also covers "the server may have saved it but the answer never arrived" (timeout):
+      // the queued copy has the same client_id, so the retry returns the saved record instead of a duplicate.
       if (errorCode(e) === "NETWORK") {
         await enqueue({ payload, owner: staff!.id, queuedAt: Date.now(), attempts: 1, storeName: store!.name });
         setResult("queued");
       } else setErr(errorText(e, lang));
     }
-    setBusy(false);
   }
 
   if (result) {

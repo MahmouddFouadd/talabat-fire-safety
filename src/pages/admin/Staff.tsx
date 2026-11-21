@@ -28,6 +28,10 @@ export default function Staff() {
       await inv("staff", "stores", "store-status", "dashboard"); toast(t("deleted"), "ok");
     } catch (e) { toastErr(e); }
   }
+  async function signOutEverywhere(s: StaffT) {
+    if (!(await ask(`${t("signOutAllConfirm")} ${s.full_name}؟`))) return;
+    try { await adminUsers({ action: "sign_out_everywhere", staff_id: s.id }); toast(t("saved"), "ok"); } catch (e) { toastErr(e); }
+  }
   async function toggle(s: StaffT) {
     if (!(await ask(`${t(s.active ? "deactivate" : "activate")}: ${s.full_name}?`, s.active))) return;
     try { await adminUsers({ action: "set_active", staff_id: s.id, active: !s.active }); await inv("staff"); toast(t("saved"), "ok"); } catch (e) { toastErr(e); }
@@ -51,6 +55,7 @@ export default function Staff() {
                   <button className="btn" onClick={() => setEdit(s)}>{t("edit")}</button>
                   <button className="btn" onClick={() => setLogin({ s, mode: s.auth_user_id ? "reset" : "create" })}>{t(s.auth_user_id ? "resetPassword" : "createLogin")}</button>
                   {s.auth_user_id && <button className="btn" onClick={() => setPinFor(s)}>{t("pin")}</button>}
+                  {s.auth_user_id && <button className="btn" onClick={() => signOutEverywhere(s)}>{t("signOutAll")}</button>}
                   {s.id !== me?.id && <button className="btn danger" onClick={() => toggle(s)}>{t(s.active ? "deactivate" : "activate")}</button>}
                   {s.id !== me?.id && <button className="btn danger" onClick={() => removeUser(s)} aria-label={t("delete")}>{t("delete")}</button>}
                 </div></td>

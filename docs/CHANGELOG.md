@@ -1,5 +1,17 @@
 # CHANGELOG
 
+## 1.6.0 — 2026-11-21 (security review — docs/SECURITY_REVIEW_2026-11-21.md)
+- Missing files under /assets/ now return 404 instead of index.html (small Worker); the app reloads once on a stale chunk after a deploy.
+- CSP, COOP and frame-ancestors sent as real HTTP headers; long-lived cache for hashed assets.
+- One inspection per store per week holds under concurrent submissions (clear DUPLICATE_WEEK); admin overrides get their own audit row.
+- Inspection submit: double-tap guard, timeouts are queued for retry (same client_id → no duplicate), one sync at a time.
+- PIN sign-in no longer reveals which accounts exist (unknown accounts lock the same way).
+- Sessions: password change ends other sessions; admin reset/deactivate/delete end all sessions; new "Sign out all devices" action.
+- Audit log: request IP/user agent, rows cannot be edited/deleted/truncated, exports are audited.
+- In-app JSON backup and inspections CSV no longer stop at 1000 rows; backup includes custom equipment tables.
+- Dashboard issue KPIs count active stores only. API roles lose TRUNCATE/TRIGGER/REFERENCES.
+- 28 new SQL security tests; CI runs every tests/sql file.
+
 ## 1.5.0 — 2026-11-21
 - Admin full control: delete stores (with a typed confirmation when history exists — history is removed with it), zones (stores become “no zone”), users (Edge Function; users with inspection history must be deactivated instead), issues and inspections. Every delete is audited.
 - Zone editor lists the zone's stores; add stores from other zones / unzoned, or remove them from the zone. Stores may have no zone.

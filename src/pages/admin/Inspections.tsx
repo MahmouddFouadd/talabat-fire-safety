@@ -3,7 +3,7 @@ import { Shell } from "../../components/Shell";
 import { Empty, ErrorBox, Loading, OverallPill, Pager, useErrorToast } from "../../components/ui";
 import { InspectionDetail } from "../../components/InspectionDetail";
 import { Icon } from "../../components/icons";
-import { PAGE, useInspections, useStaff, useZones, type InspectionFilter } from "../../lib/api";
+import { PAGE, fetchAll, logEvent, useInspections, useStaff, useZones, type InspectionFilter } from "../../lib/api";
 import { supabase } from "../../lib/supabase";
 import { useI18n } from "../../lib/i18n";
 import { download, toCsv } from "../../lib/csv";
@@ -25,11 +25,13 @@ export default function Inspections({ techMode = false }: { techMode?: boolean }
   async function exportCsv() {
     setBusy(true);
     try {
-      let b = supabase.from("inspections").select(INS_COLUMNS.join(",")).order("submitted_at", { ascending: false }).limit(10000);
-      if (f.store) b = b.ilike("store_code", `%${f.store}%`); if (f.tech) b = b.eq("tech_id", f.tech); if (f.zone) b = b.eq("zone_snapshot", f.zone);
-      if (f.status) b = b.eq("overall_status", f.status); if (f.from) b = b.gte("inspection_date", f.from); if (f.to) b = b.lte("inspection_date", f.to);
-      const { data, error } = await b; if (error) throw error;
-      const rows = (data ?? []) as unknown as Record<string, unknown>[];
+      const rows = await fetchAll<Record<string, unknown>>((from, to) => {
+        let b = supabase.from("inspections").select(INS_COLUMNS.join(",")).order("submitted_at", { ascending: false }).order("id").range(from, to);
+        if (f.store) b = b.ilike("store_code", `%${f.store}%`); if (f.tech) b = b.eq("tech_id", f.tech); if (f.zone) b = b.eq("zone_snapshot", f.zone);
+        if (f.status) b = b.eq("overall_status", f.status); if (f.from) b = b.gte("inspection_date", f.from); if (f.to) b = b.lte("inspection_date", f.to);
+        return b;
+      });
+      await logEvent("export_csv", { table: "inspections", rows: rows.length, filter: { ...f, page: undefined } });
       download("inspections.csv", toCsv([INS_COLUMNS as string[], ...rows.map((r) => INS_COLUMNS.map((c) => r[c] as string))]));
     } catch (e) { toastErr(e); }
     setBusy(false);

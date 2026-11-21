@@ -69,8 +69,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     return () => { alive = false; sub.subscription.unsubscribe(); };
   }, []);
 
+  // Manual sign-out ends the session on every device (refresh tokens revoked server-side).
   const signOut = useCallback(async () => {
-    await supabase.auth.signOut();
+    await supabase.auth.signOut({ scope: "global" });
+    setStaff(null);
+  }, []);
+  // Idle timeout only closes this device, so a phone left idle does not log the user out of the office PC.
+  const signOutLocal = useCallback(async () => {
+    await supabase.auth.signOut({ scope: "local" });
     setStaff(null);
   }, []);
 
@@ -79,17 +85,17 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     if (!session) return;
     const KEY = "fs-last-activity";
     const last = Number(localStorage.getItem(KEY) || Date.now());
-    if (Date.now() - last > idleMinutes.current * 60_000) { setIdleExpired(true); signOut(); return; }
+    if (Date.now() - last > idleMinutes.current * 60_000) { setIdleExpired(true); signOutLocal(); return; }
     const bump = () => localStorage.setItem(KEY, String(Date.now()));
     bump();
     const events = ["pointerdown", "keydown", "visibilitychange"];
     events.forEach((e) => window.addEventListener(e, bump, { passive: true }));
     const iv = window.setInterval(() => {
       const l = Number(localStorage.getItem(KEY) || Date.now());
-      if (Date.now() - l > idleMinutes.current * 60_000) { setIdleExpired(true); signOut(); }
+      if (Date.now() - l > idleMinutes.current * 60_000) { setIdleExpired(true); signOutLocal(); }
     }, 60_000);
     return () => { events.forEach((e) => window.removeEventListener(e, bump)); window.clearInterval(iv); };
-  }, [session, signOut]);
+  }, [session, signOutLocal]);
 
   const signIn: AuthState["signIn"] = async (username, password) => {
     setIdleExpired(false);
@@ -125,7 +131,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const changePassword = async (pw: string) => {
     const { error } = await supabase.auth.updateUser({ password: pw, data: { must_change_password: false } });
-    if (!error) { const { data } = await supabase.auth.getSession(); setSession(data.session); }
+    if (!error) {
+      await supabase.auth.signOut({ scope: "others" });   // a changed password must not leave old sessions alive elsewhere
+      const { data } = await supabase.auth.getSession(); setSession(data.session);
+    }
     return !error;
   };
 

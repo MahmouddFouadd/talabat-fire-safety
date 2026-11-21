@@ -67,7 +67,7 @@ const ar = {
   resolvedAt: "تاريخ الحل", fromInspection: "من فحص", createdAt: "تاريخ الفتح", issueHistory: "سجل العطل",
   // staff
   addStaff: "إضافة مستخدم", fullName: "الاسم بالكامل", role: "الصلاحية", phone: "الموبايل", login: "حساب الدخول", createLogin: "إنشاء حساب دخول",
-  resetPassword: "تغيير كلمة المرور", noLogin: "مفيش حساب", tempPassword: "كلمة مرور مؤقتة (هيغيّرها أول دخول)", legacy: "الكود القديم",
+  resetPassword: "تغيير كلمة المرور", signOutAll: "خروج من كل الأجهزة", signOutAllConfirm: "إنهاء كل جلسات الدخول لـ", noLogin: "مفيش حساب", tempPassword: "كلمة مرور مؤقتة (هيغيّرها أول دخول)", legacy: "الكود القديم",
   // zones
   addZone: "إضافة منطقة", nameAr: "الاسم بالعربي", nameEn: "الاسم بالإنجليزي", sort: "الترتيب",
   // settings
@@ -140,7 +140,7 @@ const en: Dict = {
   assign: "Assign", startRepair: "Start repair", resolve: "Record resolution", reopen: "Reopen", closeIssue: "Close", assignTo: "Assign to", resolutionNotes: "Resolution details",
   resolvedAt: "Resolved on", fromInspection: "From inspection", createdAt: "Opened on", issueHistory: "Issue history",
   addStaff: "Add user", fullName: "Full name", role: "Role", phone: "Mobile", login: "Login", createLogin: "Create login",
-  resetPassword: "Reset password", noLogin: "No login", tempPassword: "Temporary password (changed at first sign-in)", legacy: "Legacy code",
+  resetPassword: "Reset password", signOutAll: "Sign out all devices", signOutAllConfirm: "End every sign-in session of", noLogin: "No login", tempPassword: "Temporary password (changed at first sign-in)", legacy: "Legacy code",
   addZone: "Add zone", nameAr: "Arabic name", nameEn: "English name", sort: "Order",
   general: "General", appNameAr: "App name (Arabic)", appNameEn: "App name (English)", loginMsgAr: "Sign-in message (Arabic)", loginMsgEn: "Sign-in message (English)",
   overdueDays: "Store is overdue after (days)", requireRemarks: "Require technician remarks when there's an issue", idleMinutes: "Sign out after inactivity (minutes)",

@@ -36,7 +36,7 @@ const MSG: Record<string, [string, string]> = {
 export function errorCode(e: unknown): string {
   const anyE = e as { message?: string; code?: string; context?: { error?: string } } | null;
   const msg = anyE?.message ?? "";
-  if (/Failed to fetch|NetworkError|Load failed/i.test(msg)) return "NETWORK";
+  if (/Failed to fetch|NetworkError|Load failed|aborted|AbortError|timed? ?out/i.test(msg) || (e as { name?: string } | null)?.name === "AbortError") return "NETWORK";
   const key = Object.keys(MSG).find((k) => msg.startsWith(k));
   if (key) return key;
   if (anyE?.code && MSG[anyE.code]) return anyE.code;

@@ -24,6 +24,20 @@ export const useInspectionItems = (ids: string[]) => useQuery({
     return out;
   },
 });
+/** Reads every row (PostgREST returns at most 1000 rows per request, so a plain .limit(50000) is silently cut). */
+export async function fetchAll<T>(build: (from: number, to: number) => PromiseLike<{ data: unknown; error: unknown }>, pageSize = 1000, max = 200_000): Promise<T[]> {
+  const out: T[] = [];
+  for (let from = 0; from < max; from += pageSize) {
+    const page = await q<T[]>(build(from, from + pageSize - 1));
+    out.push(...page);
+    if (page.length < pageSize) break;
+  }
+  return out;
+}
+/** Writes an audit row for actions that happen only in the browser (exports). Admin-only on the server. */
+export async function logEvent(action: "export_csv" | "export_backup", detail: Record<string, unknown>) {
+  await supabase.rpc("log_event", { p_action: action, p_detail: detail });
+}
 export async function rpc<T = unknown>(fn: string, args: Record<string, unknown>) { const { data, error } = await supabase.rpc(fn, args); if (error) throw error; return data as T; }
 export const useEquipmentTypes = () => useQuery({ queryKey: ["equipment-types"], queryFn: () => q<EquipmentType[]>(supabase.from("equipment_types").select("*").order("sort").order("code")) });
 export const useSettings = () => useQuery({

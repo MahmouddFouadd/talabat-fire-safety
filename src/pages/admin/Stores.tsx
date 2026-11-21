@@ -3,7 +3,7 @@ import { useSearchParams } from "react-router-dom";
 import { z } from "zod";
 import { Shell } from "../../components/Shell";
 import { Empty, ErrorBox, Field, Loading, Modal, StatusPill, useConfirm, useErrorToast, useToast } from "../../components/ui";
-import { rpc, useInvalidate, useSaveStore, useStaff, useStoreEquipment, useStoreStatus, useStores, useZones } from "../../lib/api";
+import { rpc, useInvalidate, useSaveStore, useStaff, useStoreEquipment, useStoreStatus, useStores, useZones, logEvent } from "../../lib/api";
 import { useI18n, type TKey } from "../../lib/i18n";
 import { toCsv, download } from "../../lib/csv";
 import { Icon } from "../../components/icons";
@@ -43,6 +43,7 @@ export default function Stores() {
   function exportCsv() {
     download("stores.csv", toCsv([[t("code"), t("name"), t("zone"), t("tech"), t("status"), t("lastInspection"), t("openIssues")],
       ...rows.map((s) => [s.store_code, s.name, zoneName(s.zone_id), techName(s.assigned_tech_id), t(`st_${s.status}` as TKey), s.last_date ?? "", s.open_issues])]));
+    void logEvent("export_csv", { table: "stores", rows: rows.length });
   }
 
   const loading = status.isLoading || stores.isLoading || zones.isLoading || staff.isLoading;
