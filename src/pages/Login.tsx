@@ -54,12 +54,19 @@ export default function Login() {
   // remember the number/username and the chosen method on this device (never the secret)
   const [mode, setMode] = useState<"password" | "pin">(() => (localStorage.getItem("fs-login-mode") as "pin") === "pin" ? "pin" : "password");
   const [u, setU] = useState(() => localStorage.getItem("fs-login-id") ?? ""); const [p, setP] = useState("");
+  const [show, setShow] = useState(false);
   const [err, setErr] = useState(""); const [busy, setBusy] = useState(false);
+  const [touched, setTouched] = useState(false);
   const msg = (lang === "ar" ? ps?.login_message_ar : ps?.login_message_en) || t("loginSub");
+  const idErr = touched && !u.trim() ? t("required") : "";
+  const secretErr = touched && (!p ? t("required") : mode === "pin" && p.length < 4 ? t("pinShort") : "");
+
+  function switchMode(m: "password" | "pin") { setMode(m); setP(""); setErr(""); setShow(false); setTouched(false); }
 
   async function submit(e: FormEvent) {
     e.preventDefault();
-    if (!u.trim() || !p) return;
+    setTouched(true);
+    if (!u.trim() || !p || (mode === "pin" && p.length < 4)) return;
     setBusy(true); setErr("");
     localStorage.setItem("fs-login-id", u.trim()); localStorage.setItem("fs-login-mode", mode);
     try {
@@ -75,34 +82,48 @@ export default function Login() {
     setBusy(false);
   }
 
+  const eye = (
+    <button type="button" className="lf-eye" onClick={() => setShow(!show)} aria-label={show ? t("hide") : t("show")} aria-pressed={show}>
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+        {show ? <><path d="M3 3l18 18" /><path d="M10.6 5.1A9.8 9.8 0 0 1 12 5c5 0 9 4.5 10 7-.4 1-1.2 2.3-2.3 3.5M6.6 6.6C4.6 7.9 3.1 10 2 12c1 2.5 5 7 10 7 1.6 0 3.1-.4 4.4-1.1" /><path d="M9.9 9.9a3 3 0 0 0 4.2 4.2" /></>
+          : <><path d="M2 12c1-2.5 5-7 10-7s9 4.5 10 7c-1 2.5-5 7-10 7S3 14.5 2 12z" /><circle cx="12" cy="12" r="3" /></>}
+      </svg>
+    </button>
+  );
+
   return (
     <AuthLayout>
       <form className="box" onSubmit={submit} noValidate>
         <h2>{t("signIn")}</h2>
         <p className="sub">{msg}</p>
         {idleExpired && <div className="banner info">{t("sessionEnded")}</div>}
-        <div className="seg" role="group" aria-label={t("signIn")}>
-          <button type="button" aria-pressed={mode === "password"} onClick={() => { setMode("password"); setP(""); setErr(""); }}>{t("byPassword")}</button>
-          <button type="button" aria-pressed={mode === "pin"} onClick={() => { setMode("pin"); setP(""); setErr(""); }}>{t("byPin")}</button>
+        <div className="lseg" role="tablist" aria-label={t("signIn")}>
+          <button type="button" role="tab" aria-selected={mode === "password"} onClick={() => switchMode("password")}>{t("byPassword")}</button>
+          <button type="button" role="tab" aria-selected={mode === "pin"} onClick={() => switchMode("pin")}>{t("byPin")}</button>
         </div>
-        <div style={{ display: "grid", gap: 12 }}>
-          <label className="field">{t("loginId")}
-            <input className="input" autoComplete="username" autoCapitalize="none" spellCheck={false} dir="ltr" inputMode="text"
-              placeholder="01xxxxxxxxx" value={u} onChange={(e) => setU(e.target.value)} required />
-          </label>
-          {mode === "password" ? (
-            <label className="field">{t("password")}
-              <input className="input" type="password" autoComplete="current-password" dir="ltr" value={p} onChange={(e) => setP(e.target.value)} required />
-            </label>
-          ) : (
-            <label className="field">{t("pinLabel")}
-              <input className="input num" type="password" inputMode="numeric" autoComplete="one-time-code" pattern="[0-9]*" maxLength={6} dir="ltr"
-                style={{ fontSize: 26, letterSpacing: 10, textAlign: "center" }} value={p} onChange={(e) => setP(e.target.value.replace(/[^0-9\u0660-\u0669]/g, ""))} required />
-            </label>
-          )}
-          {err && <div className="banner bad" role="alert">{err}</div>}
-          <button className="btn pri lg" disabled={busy || !u.trim() || !p || (mode === "pin" && p.length < 4)}>{busy ? t("signingIn") : t("signIn")}</button>
+        <div className="lf">
+          <label htmlFor="login-id">{t("loginId")}</label>
+          <div className={`lf-box ${idErr ? "bad" : ""}`}>
+            <input id="login-id" autoComplete="username" autoCapitalize="none" spellCheck={false} dir="ltr" inputMode="text"
+              placeholder="01xxxxxxxxx" value={u} onChange={(e) => setU(e.target.value)} aria-invalid={!!idErr} aria-describedby={idErr ? "login-id-err" : undefined} />
+          </div>
+          {idErr && <span className="lf-err" id="login-id-err">{idErr}</span>}
         </div>
+        <div className="lf">
+          <label htmlFor="login-secret">{mode === "pin" ? t("pinLabel") : t("password")}</label>
+          <div className={`lf-box ${secretErr ? "bad" : ""}`}>
+            {mode === "password"
+              ? <input id="login-secret" type={show ? "text" : "password"} autoComplete="current-password" dir="ltr" value={p}
+                  onChange={(e) => setP(e.target.value)} aria-invalid={!!secretErr} aria-describedby={secretErr ? "login-secret-err" : undefined} />
+              : <input id="login-secret" className="num pin" type={show ? "text" : "password"} inputMode="numeric" autoComplete="one-time-code" pattern="[0-9]*" maxLength={6} dir="ltr"
+                  placeholder="••••" value={p} onChange={(e) => setP(e.target.value.replace(/[^0-9\u0660-\u0669]/g, ""))}
+                  aria-invalid={!!secretErr} aria-describedby={secretErr ? "login-secret-err" : undefined} />}
+            {eye}
+          </div>
+          {secretErr && <span className="lf-err" id="login-secret-err">{secretErr}</span>}
+        </div>
+        {err && <div className="banner bad" role="alert">{err}</div>}
+        <button className="lbtn" disabled={busy}>{busy ? t("signingIn") : t("signIn")}</button>
       </form>
     </AuthLayout>
   );

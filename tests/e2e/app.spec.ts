@@ -61,7 +61,7 @@ test("technician sees only own stores and can complete an inspection", async ({ 
 test("technician can sign in with mobile/username + PIN", async ({ page }) => {
   await mockSupabase(page, "tech");
   await page.goto("./");
-  await page.getByRole("button", { name: "PIN" }).click();
+  await page.getByRole("tab", { name: "PIN" }).click();
   await page.getByLabel(/اسم المستخدم/).fill("01012345678");
   await page.getByLabel(/PIN/).fill("1111");
   await page.getByRole("button", { name: "تسجيل الدخول" }).click();
@@ -70,4 +70,18 @@ test("technician can sign in with mobile/username + PIN", async ({ page }) => {
   await page.getByRole("button", { name: "تسجيل الدخول" }).click();
   await expect(page.locator("main h1")).toContainText("(13)");
   await expect(page.getByText("فعّل الدخول السريع بـ PIN")).toBeVisible();
+});
+
+for (const mode of ["password", "pin"]) test(`sign-in screen fits the screen width (${mode})`, async ({ page }) => {
+  await page.addInitScript((m) => localStorage.setItem("fs-login-mode", m), mode);
+  await mockSupabase(page, "tech");
+  await page.goto("./");
+  await page.waitForTimeout(400);
+  const overflow = await page.evaluate(() => {
+    const card = document.querySelector(".login .box")!.getBoundingClientRect();
+    const outOfScreen = [...document.querySelectorAll(".login *")].some((e) => { const b = e.getBoundingClientRect(); return b.width > 0 && (b.right > innerWidth + 1 || b.left < -1); });
+    const outOfCard = [...document.querySelectorAll(".login .box *")].some((e) => { const b = e.getBoundingClientRect(); return b.width > 0 && (b.right > card.right + 1 || b.left < card.left - 1); });
+    return outOfScreen || outOfCard;
+  });
+  expect(overflow, "no sign-in element may stick out of the screen").toBe(false);
 });
