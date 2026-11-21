@@ -1,5 +1,10 @@
 # CHANGELOG
 
+## 1.5.0 — 2026-11-21
+- Admin full control: delete stores (with a typed confirmation when history exists — history is removed with it), zones (stores become “no zone”), users (Edge Function; users with inspection history must be deactivated instead), issues and inspections. Every delete is audited.
+- Zone editor lists the zone's stores; add stores from other zones / unzoned, or remove them from the zone. Stores may have no zone.
+- New equipment types from Settings (count or OK/problem, icon, issue priority). Assign them per store (or in bulk) in Equipment setup; they appear as inspection steps, in reports, issues and the dashboard. Built-in types can be renamed/switched off; unused custom types can be deleted.
+
 ## 1.4.0 — 2026-11-21
 - Formal line icons for every inspected equipment type (powder, CO2, Fire Search, hose cabinet, alarm, pump) in the wizard, issues, dashboard, store cards, settings and equipment status.
 - Equipment status page rebuilt: scrollable type pills, summary hero, card rows with coloured result chips.

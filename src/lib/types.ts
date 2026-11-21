@@ -2,14 +2,19 @@ export type Role = "admin" | "technician";
 export type StoreStatus = "ok" | "issues" | "pending" | "overdue" | "never";
 export type IssueStatus = "open" | "assigned" | "in_progress" | "resolved" | "closed";
 export type Priority = "critical" | "high" | "medium" | "low";
-export type EqCode = "p6" | "co2" | "fs" | "hc" | "al" | "fp";
+export type BuiltinEq = "p6" | "co2" | "fs" | "hc" | "al" | "fp";
+/** Built-in checklist sections (fixed columns). Custom equipment uses any other code. */
+export type EqCode = BuiltinEq;
+export const BUILTIN: BuiltinEq[] = ["p6", "co2", "fs", "hc", "al", "fp"];
 
 export interface Staff { id: string; legacy_code: string | null; full_name: string; username: string | null; role: Role; zone_id: string | null; phone: string | null; auth_user_id: string | null; active: boolean; }
 export interface Zone { id: string; code: string; name_ar: string; name_en: string; sort: number; active: boolean; }
-export interface Store { store_code: string; name: string; zone_id: string; assigned_tech_id: string | null; active: boolean; flagged: boolean; notes: string | null; }
+export interface Store { store_code: string; name: string; zone_id: string | null; assigned_tech_id: string | null; active: boolean; flagged: boolean; notes: string | null; }
 export interface StoreEquipment { store_code: string; p6_qty: number; co2_qty: number; fs_qty: number; hc_total: number; updated_at: string; }
-export interface EquipmentType { code: EqCode; name_ar: string; name_en: string; has_quantity: boolean; active: boolean; sort: number; }
-export interface StoreStatusRow { store_code: string; name: string; zone_id: string; assigned_tech_id: string | null; active: boolean; flagged: boolean; last_date: string | null; last_overall: string | null; last_code: string | null; has_base: boolean; status: StoreStatus; open_issues: number; }
+export interface EquipmentType { code: string; name_ar: string; name_en: string; has_quantity: boolean; active: boolean; sort: number; kind: "builtin" | "count" | "check"; icon: string | null; issue_priority: Priority; }
+export interface StoreItem { store_code: string; type_code: string; qty: number; }
+export interface InspectionItem { inspection_id: string; type_code: string; kind: "count" | "check"; qty: number; good: number | null; dmg: number | null; miss: number | null; ok: boolean | null; status: "ok" | "issue"; rmk: string | null; }
+export interface StoreStatusRow { store_code: string; name: string; zone_id: string | null; assigned_tech_id: string | null; active: boolean; flagged: boolean; last_date: string | null; last_overall: string | null; last_code: string | null; has_base: boolean; status: StoreStatus; open_issues: number; }
 export interface Inspection {
   id: string; inspection_code: string; store_code: string; tech_id: string; week_start: string; inspection_date: string; submitted_at: string;
   store_name_snapshot: string; zone_snapshot: string; tech_name_snapshot: string;
@@ -21,11 +26,11 @@ export interface Inspection {
   fp_available: boolean | null; fp_running: string | null; fp_tested: string | null; fp_status: string; fp_rmk: string | null;
   overall_status: "ok" | "warn"; general_remarks: string | null; duplicate_override: boolean; override_reason: string | null;
 }
-export interface Issue { id: string; issue_code: string; inspection_id: string | null; store_code: string; equipment: EqCode; description: string; priority: Priority; status: IssueStatus; assigned_to: string | null; created_at: string; resolved_at: string | null; resolution_notes: string | null; }
+export interface Issue { id: string; issue_code: string; inspection_id: string | null; store_code: string; equipment: string; description: string; priority: Priority; status: IssueStatus; assigned_to: string | null; created_at: string; resolved_at: string | null; resolution_notes: string | null; }
 export interface AuditRow { id: number; at: string; actor_staff: string | null; action: string; entity: string; entity_id: string | null; detail: unknown; }
 export interface Dashboard {
   week_start: string; today: string; stores: number; by_status: Partial<Record<StoreStatus, number>>; no_base: number; flagged: number;
-  open_issues: number; issues_by_priority: Partial<Record<Priority, number>>; issues_by_equipment: Partial<Record<EqCode, number>>; issues_by_status: Partial<Record<IssueStatus, number>>;
+  open_issues: number; issues_by_priority: Partial<Record<Priority, number>>; issues_by_equipment: Record<string, number>; issues_by_status: Partial<Record<IssueStatus, number>>;
   zones: { id: string; code: string; name_ar: string; name_en: string; stores: number; done: number; overdue: number }[];
   techs: { id: string; name: string; stores: number; done: number; overdue: number }[];
   trend: { week_start: string; inspections: number; with_issues: number }[];

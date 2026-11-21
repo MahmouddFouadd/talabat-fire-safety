@@ -94,6 +94,22 @@ Deno.serve(async (req) => {
       return json({ ok: true }, 200, origin);
     }
 
+    if (action === "delete") {
+      if (target.id === caller.id) return json({ error: "CANNOT_DELETE_SELF" }, 400, origin);
+      const { count } = await service.from("inspections").select("id", { count: "exact", head: true }).eq("tech_id", target.id);
+      if ((count ?? 0) > 0) return json({ error: "HAS_HISTORY" }, 409, origin);
+      if (target.role === "admin") {
+        const { count: admins } = await service.from("staff").select("id", { count: "exact", head: true }).eq("role", "admin").eq("active", true).neq("id", target.id);
+        if ((admins ?? 0) === 0) return json({ error: "LAST_ADMIN" }, 400, origin);
+      }
+      await service.from("stores").update({ assigned_tech_id: null }).eq("assigned_tech_id", target.id);
+      const { error } = await service.from("staff").delete().eq("id", target.id);
+      if (error) return json({ error: "DELETE_FAILED" }, 400, origin);
+      if (target.auth_user_id) await service.auth.admin.deleteUser(target.auth_user_id).catch(() => undefined);
+      await audit("delete_user", { name: target.full_name });
+      return json({ ok: true }, 200, origin);
+    }
+
     return json({ error: "UNKNOWN_ACTION" }, 400, origin);
   } catch (_e) {
     return json({ error: "SERVER_ERROR" }, 500, origin);

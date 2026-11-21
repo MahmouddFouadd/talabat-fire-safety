@@ -1,6 +1,6 @@
 import { useMutation, useQuery, useQueryClient, keepPreviousData } from "@tanstack/react-query";
 import { supabase } from "./supabase";
-import type { AuditRow, Dashboard, EquipmentType, Inspection, Issue, IssueStatus, Staff, Store, StoreEquipment, StoreStatusRow, Zone } from "./types";
+import type { InspectionItem, StoreItem, AuditRow, Dashboard, EquipmentType, Inspection, Issue, IssueStatus, Staff, Store, StoreEquipment, StoreStatusRow, Zone } from "./types";
 
 async function q<T>(p: PromiseLike<{ data: unknown; error: unknown; count?: number | null }>): Promise<T> {
   const { data, error } = await p;
@@ -15,7 +15,17 @@ export const useStaff = (enabled = true) => useQuery({ enabled, queryKey: ["staf
 export const useStoreStatus = () => useQuery({ queryKey: ["store-status"], queryFn: () => q<StoreStatusRow[]>(supabase.from("v_store_status").select("*").order("store_code")) });
 export const useStores = () => useQuery({ queryKey: ["stores"], queryFn: () => q<Store[]>(supabase.from("stores").select("*").order("store_code")) });
 export const useStoreEquipment = () => useQuery({ queryKey: ["store-equipment"], queryFn: () => q<StoreEquipment[]>(supabase.from("store_equipment").select("*")) });
-export const useEquipmentTypes = () => useQuery({ queryKey: ["equipment-types"], queryFn: () => q<EquipmentType[]>(supabase.from("equipment_types").select("*").order("sort")) });
+export const useStoreItems = () => useQuery({ queryKey: ["store-items"], queryFn: () => q<StoreItem[]>(supabase.from("store_items").select("store_code,type_code,qty")) });
+export const useInspectionItems = (ids: string[]) => useQuery({
+  enabled: ids.length > 0, queryKey: ["inspection-items", ids.join(",")],
+  queryFn: async () => {
+    const out: InspectionItem[] = [];
+    for (let i = 0; i < ids.length; i += 150) out.push(...await q<InspectionItem[]>(supabase.from("inspection_items").select("*").in("inspection_id", ids.slice(i, i + 150))));
+    return out;
+  },
+});
+export async function rpc<T = unknown>(fn: string, args: Record<string, unknown>) { const { data, error } = await supabase.rpc(fn, args); if (error) throw error; return data as T; }
+export const useEquipmentTypes = () => useQuery({ queryKey: ["equipment-types"], queryFn: () => q<EquipmentType[]>(supabase.from("equipment_types").select("*").order("sort").order("code")) });
 export const useSettings = () => useQuery({
   queryKey: ["settings"],
   queryFn: async () => Object.fromEntries((await q<{ key: string; value: unknown }[]>(supabase.from("app_settings").select("key,value"))).map((r) => [r.key, r.value])) as Record<string, unknown>,

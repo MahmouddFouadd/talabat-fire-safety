@@ -11,6 +11,8 @@ export interface InspectionPayload {
   hc: { ok: number; hose: string; valve: string; glass: string; rmk?: string };
   al: { system: string; battery: string; detectors: string; mcp: string; sounders: string; rmk?: string };
   fp: { available: boolean; running: string; tested: string; rmk?: string };
+  /** custom equipment added by admins: count → good/dmg/miss, check → ok */
+  items?: Record<string, { good?: number; dmg?: number; miss?: number; ok?: boolean; rmk?: string }>;
   general_remarks?: string;
   override?: boolean;
   override_reason?: string;

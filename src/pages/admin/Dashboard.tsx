@@ -4,7 +4,7 @@ import { Shell } from "../../components/Shell";
 import { ErrorBox, Kpi, Loading } from "../../components/ui";
 import { useDashboard, useStoreStatus, useZones } from "../../lib/api";
 import { useI18n, type TKey } from "../../lib/i18n";
-import { EqIcon } from "../../components/EqIcon";
+import { EqIcon, useEq } from "../../components/EqIcon";
 import type { StoreStatus, StoreStatusRow, Zone } from "../../lib/types";
 
 const ORDER: StoreStatus[] = ["overdue", "never", "pending", "issues", "ok"];
@@ -13,7 +13,7 @@ export default function Dashboard() {
   const { t, nf, df, lang } = useI18n();
   const nav = useNavigate();
   const [zone, setZone] = useState<string>("");
-  const zones = useZones();
+  const zones = useZones(); const eqm = useEq();
   const d = useDashboard(zone || null);
   const stores = useStoreStatus();
   const zn = (z: { name_ar: string; name_en: string }) => (lang === "ar" ? z.name_ar : z.name_en);
@@ -98,8 +98,8 @@ export default function Dashboard() {
         <div className="card glass">
           <h3 className="ttl">{t("byEquipment")}</h3>
           <div className="rev">
-            {(["p6", "co2", "fs", "hc", "al", "fp"] as const).map((k) => (
-              <div className="r" key={k}><span style={{ display: "inline-flex", gap: 10, alignItems: "center" }}><EqIcon code={k} size={20} />{t(`eq_${k}` as TKey)}</span><b className="num">{nf(s.issues_by_equipment[k] ?? 0)}</b></div>
+            {[...(["p6", "co2", "fs", "hc", "al", "fp"] as string[]), ...eqm.types.filter((x) => (x.kind === "count" || x.kind === "check") && x.active).map((x) => x.code)].map((k) => (
+              <div className="r" key={k}><span style={{ display: "inline-flex", gap: 10, alignItems: "center" }}><EqIcon code={k} icon={eqm.icon(k)} size={20} />{eqm.name(k)}</span><b className="num">{nf(s.issues_by_equipment[k] ?? 0)}</b></div>
             ))}
           </div>
         </div>
@@ -116,7 +116,10 @@ function StoreMap({ stores, zones }: { stores: StoreStatusRow[]; zones: Zone[] }
   const nav = useNavigate();
   const [f, setF] = useState<StoreStatus | "">("");
   const count = (k: StoreStatus) => stores.filter((x) => x.status === k).length;
-  const groups = zones.map((z) => ({ z, list: stores.filter((x) => x.zone_id === z.id).sort((a, b) => ORDER.indexOf(a.status) - ORDER.indexOf(b.status)) })).filter((g) => g.list.length);
+  const sortS = (l: StoreStatusRow[]) => l.sort((a, b) => ORDER.indexOf(a.status) - ORDER.indexOf(b.status));
+  const groups = [...zones.map((z) => ({ z, list: sortS(stores.filter((x) => x.zone_id === z.id)) })),
+    { z: { id: "none", code: "none", name_ar: t("noZone"), name_en: t("noZone"), sort: 9999, active: true } as Zone, list: sortS(stores.filter((x) => !x.zone_id || !zones.some((z) => z.id === x.zone_id))) }]
+    .filter((g) => g.list.length);
   const picked = f ? stores.filter((x) => x.status === f) : [];
   return (
     <section className="card glass" style={{ marginTop: 16 }}>

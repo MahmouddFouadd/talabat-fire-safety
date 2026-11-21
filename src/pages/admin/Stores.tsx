@@ -3,7 +3,7 @@ import { useSearchParams } from "react-router-dom";
 import { z } from "zod";
 import { Shell } from "../../components/Shell";
 import { Empty, ErrorBox, Field, Loading, Modal, StatusPill, useConfirm, useErrorToast, useToast } from "../../components/ui";
-import { useSaveStore, useStaff, useStoreEquipment, useStoreStatus, useStores, useZones } from "../../lib/api";
+import { rpc, useInvalidate, useSaveStore, useStaff, useStoreEquipment, useStoreStatus, useStores, useZones } from "../../lib/api";
 import { useI18n, type TKey } from "../../lib/i18n";
 import { toCsv, download } from "../../lib/csv";
 import { Icon } from "../../components/icons";
@@ -12,7 +12,7 @@ import type { Store, StoreStatus } from "../../lib/types";
 const schema = z.object({
   store_code: z.string().trim().regex(/^[A-Za-z0-9_-]{1,30}$/),
   name: z.string().trim().min(1).max(120),
-  zone_id: z.string().uuid(),
+  zone_id: z.string().uuid().nullable(),
   assigned_tech_id: z.string().uuid().nullable(),
   notes: z.string().max(500).nullable(),
 });
@@ -28,10 +28,10 @@ export default function Stores() {
   const setParam = (k: string, v: string) => { const n = new URLSearchParams(sp); if (v) n.set(k, v); else n.delete(k); setSp(n, { replace: true }); };
 
   const techName = (id: string | null) => staff.data?.find((s) => s.id === id)?.full_name ?? t("unassigned");
-  const zoneName = (id: string) => { const z = zones.data?.find((x) => x.id === id); return z ? (lang === "ar" ? z.name_ar : z.name_en) : "—"; };
+  const zoneName = (id: string | null) => { if (!id) return t("noZone"); const z = zones.data?.find((x) => x.id === id); return z ? (lang === "ar" ? z.name_ar : z.name_en) : "—"; };
 
   const rows = useMemo(() => (status.data ?? []).filter((s) =>
-    (showInactive || s.active) && (!zf || s.zone_id === zf) && (!flagged || s.flagged) &&
+    (showInactive || s.active) && (!zf || (zf === "none" ? !s.zone_id : s.zone_id === zf)) && (!flagged || s.flagged) &&
     (!sf || s.status === sf || (sf === "pending" && s.status === "never")) &&
     (!q || `${s.name} ${s.store_code}`.toLowerCase().includes(q.toLowerCase()))), [status.data, q, zf, sf, flagged, showInactive]);
 
@@ -52,6 +52,7 @@ export default function Stores() {
         <input className="input" placeholder={t("search")} value={q} onChange={(e) => setParam("q", e.target.value)} aria-label={t("search")} />
         <select className="input" value={zf} onChange={(e) => setParam("zone", e.target.value)} aria-label={t("zone")}>
           <option value="">{t("allZones")}</option>{zones.data?.map((z) => <option key={z.id} value={z.id}>{lang === "ar" ? z.name_ar : z.name_en}</option>)}
+          <option value="none">{t("noZone")}</option>
         </select>
         <select className="input" value={sf} onChange={(e) => setParam("status", e.target.value)} aria-label={t("status")}>
           <option value="">{t("all")}</option>{(["ok", "issues", "pending", "overdue", "never"] as StoreStatus[]).map((k) => <option key={k} value={k}>{t(`st_${k}` as TKey)}</option>)}
@@ -93,6 +94,15 @@ export default function Stores() {
 
 function StoreForm({ store, base, onClose }: { store: Store | null; base?: { p6_qty: number; co2_qty: number; fs_qty: number; hc_total: number }; onClose: () => void }) {
     const { t, lang } = useI18n();
+    const inv = useInvalidate(); const [delStep, setDelStep] = useState<null | { inspections: number; issues: number }>(null); const [typed, setTyped] = useState("");
+    async function del(force: boolean) {
+      if (!store) return;
+      try {
+        const r = await rpc<{ needs_force?: boolean; inspections?: number; issues?: number }>("admin_delete_store", { p_code: store.store_code, p_force: force });
+        if (r?.needs_force) { setDelStep({ inspections: r.inspections ?? 0, issues: r.issues ?? 0 }); return; }
+        await inv("stores", "store-status", "store-equipment", "store-items", "dashboard", "issues", "inspections"); toast(t("deleted"), "ok"); onClose();
+      } catch (e) { toastErr(e); }
+    }
     const status = useStoreStatus(); const zones = useZones(); const staff = useStaff();
     const save = useSaveStore(); const toastErr = useErrorToast(); const toast = useToast();
     const [f, setF] = useState({ store_code: store?.store_code ?? "", name: store?.name ?? "", zone_id: store?.zone_id ?? "", assigned_tech_id: store?.assigned_tech_id ?? "", notes: store?.notes ?? "", flagged: store?.flagged ?? false });
@@ -102,7 +112,7 @@ function StoreForm({ store, base, onClose }: { store: Store | null; base?: { p6_
     const techs = (staff.data ?? []).filter((s) => s.active && s.role === "technician");
 
     function submit() {
-      const parsed = schema.safeParse({ ...f, assigned_tech_id: f.assigned_tech_id || null, notes: f.notes || null });
+      const parsed = schema.safeParse({ ...f, zone_id: f.zone_id || null, assigned_tech_id: f.assigned_tech_id || null, notes: f.notes || null });
       const e: Record<string, string> = {};
       if (!parsed.success) parsed.error.issues.forEach((i) => (e[String(i.path[0])] = t("errorGeneric")));
       if (!store && status.data?.some((s) => s.store_code.toLowerCase() === f.store_code.trim().toLowerCase())) e.store_code = "23505";
@@ -114,7 +124,16 @@ function StoreForm({ store, base, onClose }: { store: Store | null; base?: { p6_
     }
     return (
       <Modal title={store ? `${t("editStore")} — ${store.store_code}` : t("addStore")} onClose={onClose} wide
-        footer={<><button className="btn" onClick={onClose}>{t("cancel")}</button><button className="btn pri" disabled={save.isPending} onClick={submit}>{t("save")}</button></>}>
+        footer={<>
+          {store && <button className="btn danger" style={{ marginInlineEnd: "auto" }} onClick={() => { if (confirm(`${t("deleteConfirm")} ${store.name} (${store.store_code})؟`)) del(false); }}>{t("delete")}</button>}
+          <button className="btn" onClick={onClose}>{t("cancel")}</button><button className="btn pri" disabled={save.isPending} onClick={submit}>{t("save")}</button></>}>
+        {delStep && store && (
+          <div className="banner bad" style={{ flexDirection: "column", alignItems: "stretch" }}>
+            <span>{t("deleteForce")} ({delStep.inspections} / {delStep.issues})</span>
+            <input className="input" dir="ltr" placeholder={store.store_code} value={typed} onChange={(e) => setTyped(e.target.value)} aria-label={t("typeToConfirm")} />
+            <button className="btn danger" disabled={typed.trim() !== store.store_code} onClick={() => del(true)}>{t("delete")}</button>
+          </div>
+        )}
         <div className="grid g2">
           <Field label={t("storeCode")} hint={t("storeCodeHint")} error={errs.store_code === "23505" ? t("errorGeneric") : errs.store_code}>
             <input className="input" dir="ltr" value={f.store_code} disabled={!!store} onChange={(e) => setF({ ...f, store_code: e.target.value.toUpperCase() })} />
@@ -122,7 +141,7 @@ function StoreForm({ store, base, onClose }: { store: Store | null; base?: { p6_
           <Field label={t("storeName")} error={errs.name}><input className="input" value={f.name} onChange={(e) => setF({ ...f, name: e.target.value })} /></Field>
           <Field label={t("zone")} error={errs.zone_id}>
             <select className="input" value={f.zone_id} onChange={(e) => setF({ ...f, zone_id: e.target.value })}>
-              <option value="">—</option>{zones.data?.filter((z) => z.active || z.id === f.zone_id).map((z) => <option key={z.id} value={z.id}>{lang === "ar" ? z.name_ar : z.name_en}</option>)}
+              <option value="">{t("noZone")}</option>{zones.data?.filter((z) => z.active || z.id === f.zone_id).map((z) => <option key={z.id} value={z.id}>{lang === "ar" ? z.name_ar : z.name_en}</option>)}
             </select>
           </Field>
           <Field label={t("assignedTech")}>

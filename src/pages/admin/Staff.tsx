@@ -21,6 +21,13 @@ export default function Staff() {
   const pins = useQuery({ queryKey: ["pin-list"], queryFn: async () => { const { data, error } = await supabase.rpc("admin_pin_list"); if (error) throw error; return new Set((data as string[]) ?? []); } });
   const zoneName = (id: string | null) => { const z = zones.data?.find((x) => x.id === id); return z ? (lang === "ar" ? z.name_ar : z.name_en) : "—"; };
 
+  async function removeUser(s: StaffT) {
+    if (!(await ask(`${t("deleteConfirm")} ${s.full_name}؟`, true))) return;
+    try {
+      await adminUsers({ action: "delete", staff_id: s.id });   // Edge Function: checks history, last admin, removes login
+      await inv("staff", "stores", "store-status", "dashboard"); toast(t("deleted"), "ok");
+    } catch (e) { toastErr(e); }
+  }
   async function toggle(s: StaffT) {
     if (!(await ask(`${t(s.active ? "deactivate" : "activate")}: ${s.full_name}?`, s.active))) return;
     try { await adminUsers({ action: "set_active", staff_id: s.id, active: !s.active }); await inv("staff"); toast(t("saved"), "ok"); } catch (e) { toastErr(e); }
@@ -45,6 +52,7 @@ export default function Staff() {
                   <button className="btn" onClick={() => setLogin({ s, mode: s.auth_user_id ? "reset" : "create" })}>{t(s.auth_user_id ? "resetPassword" : "createLogin")}</button>
                   {s.auth_user_id && <button className="btn" onClick={() => setPinFor(s)}>{t("pin")}</button>}
                   {s.id !== me?.id && <button className="btn danger" onClick={() => toggle(s)}>{t(s.active ? "deactivate" : "activate")}</button>}
+                  {s.id !== me?.id && <button className="btn danger" onClick={() => removeUser(s)} aria-label={t("delete")}>{t("delete")}</button>}
                 </div></td>
               </tr>))}</tbody>
           </table></div>

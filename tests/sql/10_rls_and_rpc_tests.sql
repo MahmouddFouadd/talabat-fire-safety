@@ -232,3 +232,67 @@ reset role;
 set role service_role;
 select pg_temp.expect((public.pin_check('tech002','3691')->>'ok')::boolean, 'new PIN from admin works');
 reset role;
+-- ── admin full control: custom equipment, zones without stores, deletes ──
+select pg_temp.as_user('00000000-0000-0000-0000-00000000000a');
+set role authenticated;
+insert into public.equipment_types(code, name_ar, name_en, has_quantity, kind, icon, issue_priority, sort)
+values ('emlight', 'كشافات الطوارئ', 'Emergency lights', true, 'count', 'light', 'medium', 7),
+       ('exitsign', 'لوحات المخارج', 'Exit signs', false, 'check', 'exit', 'high', 8);
+select pg_temp.expect((select count(*) from public.equipment_types where kind in ('count','check')) = 2, 'admin added 2 new equipment types');
+insert into public.store_items(store_code, type_code, qty) select store_code, 'emlight', 3 from public.stores where store_code in ('DS4','DS6');
+insert into public.store_items(store_code, type_code, qty) values ('DS4','exitsign',1);
+update public.stores set zone_id = null where store_code = 'DS9';
+select pg_temp.expect((select zone_id is null from public.stores where store_code='DS9'), 'store can be removed from its zone');
+reset role;
+select pg_temp.as_user('00000000-0000-0000-0000-000000000003');
+set role authenticated;
+do $$ begin
+  begin insert into public.equipment_types(code,name_ar,name_en,has_quantity,kind) values ('hack','x','x',true,'count');
+    raise exception 'TEST FAILED: tech added type';
+  exception when insufficient_privilege then raise notice 'ok - technician cannot add equipment types'; end;
+end $$;
+-- tech3 is in zone mode for Zone 2 (set earlier), DS4 is a zone-2 store
+select pg_temp.expect((select count(*) from public.store_items where store_code='DS4') = 2, 'technician sees custom items of an accessible store');
+do $$ begin
+  begin perform public.submit_inspection((select jsonb_build_object('client_id','77777777-7777-7777-7777-777777777777','store_code','DS4',
+     'p6', jsonb_build_object('good',p6_qty,'dmg',0,'miss',0), 'co2', jsonb_build_object('good',co2_qty,'dmg',0,'miss',0),
+     'fs', jsonb_build_object('good',fs_qty,'dmg',0,'miss',0), 'hc', jsonb_build_object('ok',hc_total,'hose','good','valve','good','glass','good'),
+     'al', jsonb_build_object('system','ok','battery','good','detectors','good','mcp','good','sounders','working'), 'fp', jsonb_build_object('available',false))
+     from public.store_equipment where store_code='DS4'));
+  exception when others then if sqlerrm not like 'MISSING_FIELD:emlight%' then raise; end if; raise notice 'ok - custom equipment must be inspected (%)', sqlerrm; return; end;
+  raise exception 'TEST FAILED';
+end $$;
+select public.submit_inspection((select jsonb_build_object('client_id','88888888-8888-8888-8888-888888888888','store_code','DS4',
+     'p6', jsonb_build_object('good',p6_qty,'dmg',0,'miss',0), 'co2', jsonb_build_object('good',co2_qty,'dmg',0,'miss',0),
+     'fs', jsonb_build_object('good',fs_qty,'dmg',0,'miss',0), 'hc', jsonb_build_object('ok',hc_total,'hose','good','valve','good','glass','good'),
+     'al', jsonb_build_object('system','ok','battery','good','detectors','good','mcp','good','sounders','working'), 'fp', jsonb_build_object('available',false),
+     'items', jsonb_build_object('emlight', jsonb_build_object('good',2,'dmg',0,'miss',1), 'exitsign', jsonb_build_object('ok',false)))
+     from public.store_equipment where store_code='DS4')) as r \gset
+select pg_temp.expect((:'r'::jsonb->>'overall') = 'warn', 'custom item problems make the inspection warn');
+select pg_temp.expect((select count(*) from public.inspection_items) = 2, 'custom results saved');
+select pg_temp.expect((select priority::text from public.issues where equipment='emlight') = 'high', 'missing custom item raises priority to high');
+select pg_temp.expect((select priority::text from public.issues where equipment='exitsign') = 'high', 'check item uses the type priority');
+do $$ begin
+  begin perform public.admin_delete_store('DS4', true); exception when others then if sqlerrm <> 'NOT_AUTHORIZED' then raise; end if; raise notice 'ok - technician cannot delete stores'; return; end;
+  raise exception 'TEST FAILED';
+end $$;
+reset role;
+select pg_temp.as_user('00000000-0000-0000-0000-00000000000a');
+set role authenticated;
+do $$ begin
+  begin perform public.admin_delete_equipment_type('emlight'); exception when others then if sqlerrm <> 'HAS_HISTORY' then raise; end if; raise notice 'ok - used equipment type cannot be deleted (deactivate instead)'; return; end;
+  raise exception 'TEST FAILED';
+end $$;
+do $$ begin
+  begin perform public.admin_delete_equipment_type('p6'); exception when others then if sqlerrm <> 'BUILTIN_TYPE' then raise; end if; raise notice 'ok - built-in type cannot be deleted'; return; end;
+  raise exception 'TEST FAILED';
+end $$;
+select pg_temp.expect((public.admin_delete_store('DS4')->>'needs_force')::boolean, 'store with history asks for confirmation first');
+select pg_temp.expect((public.admin_delete_store('DS4', true)->>'deleted')::boolean, 'admin deleted store with its history');
+select pg_temp.expect((select count(*) from public.inspection_items) = 0 and (select count(*) from public.stores where store_code='DS4') = 0, 'store, its inspections and items are gone');
+select public.admin_delete_zone((select id from public.zones where code='Zone 4'));
+select pg_temp.expect((select count(*) from public.zones where code='Zone 4') = 0 and (select count(*) from public.stores where zone_id is null) >= 16, 'deleting a zone keeps its stores (unassigned)');
+select public.admin_delete_issue((select id from public.issues where equipment='al' limit 1));
+select pg_temp.expect((select count(*) from public.issues where equipment='al') = 0, 'admin deleted an issue');
+select pg_temp.expect((select count(*) from public.audit_logs where action='delete' and entity='stores') = 1, 'deletes are audited');
+reset role;

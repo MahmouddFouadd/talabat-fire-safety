@@ -1,4 +1,7 @@
-import { useInspection } from "../lib/api";
+import { rpc, useInspection, useInspectionItems, useInvalidate } from "../lib/api";
+import { useAuth } from "../lib/auth";
+import { EqIcon, useEq } from "./EqIcon";
+import { useErrorToast, useToast } from "./ui";
 import { useI18n, type TKey } from "../lib/i18n";
 import { ErrorBox, Loading, Modal, OverallPill } from "./ui";
 import type { Inspection } from "../lib/types";
@@ -6,6 +9,12 @@ import type { Inspection } from "../lib/types";
 export function InspectionDetail({ id, onClose }: { id: string; onClose: () => void }) {
   const { t, nf, df } = useI18n();
   const { data: r, isLoading, error } = useInspection(id);
+  const items = useInspectionItems([id]); const eqm = useEq(); const { staff } = useAuth();
+  const inv = useInvalidate(); const toast = useToast(); const toastErr = useErrorToast();
+  async function remove() {
+    if (!r || !confirm(`${t("deleteConfirm")} ${r.inspection_code}؟`)) return;
+    try { await rpc("admin_delete_inspection", { p_id: id }); await inv("inspections", "issues", "dashboard", "store-status", "latest-per-store"); toast(t("deleted"), "ok"); onClose(); } catch (e) { toastErr(e); }
+  }
   const v = (x: string | null) => (x ? t(`v_${x}` as TKey) : "—");
   const st = (s: string) => s === "na" ? <span className="pill p-none">{t("v_na")}</span> : <span className={`pill ${s === "ok" ? "p-ok" : "p-warn"}`}>{t(s === "ok" ? "ov_ok" : "ov_warn")}</span>;
   const counted = (r: Inspection, k: "p6" | "co2" | "fs") => (
@@ -13,7 +22,9 @@ export function InspectionDetail({ id, onClose }: { id: string; onClose: () => v
       <span className="num">{nf(r[`${k}_good`])} {t("good")} · {nf(r[`${k}_dmg`])} {t("dmg")} · {nf(r[`${k}_miss`])} {t("miss")} / {nf(r[`${k}_qty`])} {st(r[`${k}_status`])}</span></div>
   );
   return (
-    <Modal title={r ? `${r.store_name_snapshot} — ${r.inspection_code}` : t("loading")} onClose={onClose} wide footer={<button className="btn" onClick={onClose}>{t("close")}</button>}>
+    <Modal title={r ? `${r.store_name_snapshot} — ${r.inspection_code}` : t("loading")} onClose={onClose} wide footer={<>
+      {staff?.role === "admin" && r && <button className="btn danger" style={{ marginInlineEnd: "auto" }} onClick={remove}>{t("delete")}</button>}
+      <button className="btn" onClick={onClose}>{t("close")}</button></>}>
       {isLoading ? <Loading /> : error || !r ? <ErrorBox error={error} /> : (
         <>
           <div className="banner info" style={{ justifyContent: "space-between" }}>
@@ -23,6 +34,12 @@ export function InspectionDetail({ id, onClose }: { id: string; onClose: () => v
             {(["p6", "co2", "fs"] as const).map((k) => counted(r, k))}
             <div className="r"><span>{t("eq_hc")}</span><span>{nf(r.hc_ok)}/{nf(r.hc_total)} · {t("hose")}: {v(r.hc_hose)} · {t("valve")}: {v(r.hc_valve)} · {t("glass")}: {v(r.hc_glass)} {st(r.hc_status)}</span></div>
             <div className="r"><span>{t("eq_al")}</span><span>{v(r.al_system)} · {t("battery")}: {v(r.al_battery)} · {t("detectors")}: {v(r.al_detectors)} · MCP: {v(r.al_mcp)} · {t("sounders")}: {v(r.al_sounders)} {st(r.al_status)}</span></div>
+            {(items.data ?? []).map((it) => (
+              <div className="r" key={it.type_code}>
+                <span style={{ display: "inline-flex", gap: 8, alignItems: "center" }}><EqIcon code={it.type_code} icon={eqm.icon(it.type_code)} size={18} />{eqm.name(it.type_code)}</span>
+                <span className="num">{it.kind === "count" ? `${nf(it.good ?? 0)} ${t("good")} · ${nf(it.dmg ?? 0)} ${t("dmg")} · ${nf(it.miss ?? 0)} ${t("miss")} / ${nf(it.qty)} ` : ""}{st(it.status)}{it.rmk ? ` — ${it.rmk}` : ""}</span>
+              </div>
+            ))}
             <div className="r"><span>{t("eq_fp")}</span><span>{r.fp_available ? `${v(r.fp_running)} · ${v(r.fp_tested)}` : t("v_na")} {st(r.fp_status)}</span></div>
           </div>
           {[["p6", r.p6_rmk], ["co2", r.co2_rmk], ["fs", r.fs_rmk], ["hc", r.hc_rmk], ["al", r.al_rmk], ["fp", r.fp_rmk]].filter(([, x]) => x).map(([k, x]) => (

@@ -51,7 +51,8 @@ test("technician sees only own stores and can complete an inspection", async ({ 
   await page.locator(".counter").nth(1).getByRole("button", { name: "+" }).click();
   await expect(page.locator(".tally.ok")).toBeVisible();
   await page.screenshot({ path: `test-results/shots/${info.project.name}-tech-step1.png` });
-  for (let i = 0; i < 6; i++) await page.getByRole("button", { name: "التالي" }).click();
+  // built-in steps + any custom equipment assigned to the store, until the review step
+  for (let i = 0; i < 12 && !(await page.getByRole("button", { name: "إرسال الفحص" }).isVisible()); i++) await page.getByRole("button", { name: "التالي" }).click();
   await expect(page.getByText("أعطال هتتفتح تلقائياً")).toBeVisible();
   await noHorizontalOverflow(page);
   await page.getByRole("button", { name: "إرسال الفحص" }).click();
@@ -84,4 +85,12 @@ for (const mode of ["password", "pin"]) test(`sign-in screen fits the screen wid
     return outOfScreen || outOfCard;
   });
   expect(overflow, "no sign-in element may stick out of the screen").toBe(false);
+});
+
+test("custom equipment added by the admin appears as an inspection step", async ({ page }) => {
+  await login(page, "tech");
+  await page.getByRole("button", { name: /ابدأ الفحص|كمّل المسودة/ }).first().click();
+  for (let i = 0; i < 12 && !(await page.getByRole("heading", { name: "كشافات الطوارئ" }).isVisible()); i++) await page.getByRole("button", { name: "التالي" }).click();
+  await expect(page.getByRole("heading", { name: "كشافات الطوارئ" })).toBeVisible();
+  await expect(page.getByText("المجموع مظبوط (3)")).toBeVisible();
 });

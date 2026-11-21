@@ -2,13 +2,13 @@ import { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { Shell } from "../../components/Shell";
 import { Empty, ErrorBox, Loading, StatusPill, useToast } from "../../components/ui";
-import { useInvalidate, useStoreEquipment, useStoreStatus } from "../../lib/api";
+import { useInvalidate, useStoreEquipment, useStoreItems, useStoreStatus } from "../../lib/api";
 import { useAuth } from "../../lib/auth";
 import { useI18n } from "../../lib/i18n";
 import { drafts, flushOutbox, listOutbox, removeOutbox, type OutboxItem } from "../../lib/offline";
 import { errorText } from "../../lib/errors";
 import { PinDialog, usePinStatus } from "../../components/PinDialog";
-import { EqIcon } from "../../components/EqIcon";
+import { EqIcon, useEq } from "../../components/EqIcon";
 import type { StoreStatus } from "../../lib/types";
 
 const ORDER: Record<StoreStatus, number> = { overdue: 0, never: 1, pending: 2, issues: 3, ok: 4 };
@@ -16,7 +16,7 @@ const ORDER: Record<StoreStatus, number> = { overdue: 0, never: 1, pending: 2, i
 export default function MyStores() {
   const { t, nf, df, lang } = useI18n();
   const { staff } = useAuth(); const nav = useNavigate(); const toast = useToast(); const inv = useInvalidate();
-  const st = useStoreStatus(); const eq = useStoreEquipment();
+  const st = useStoreStatus(); const eq = useStoreEquipment(); const sItems = useStoreItems(); const eqm = useEq();
   const pinStatus = usePinStatus();
   const [pinOpen, setPinOpen] = useState(false);
   const [pinLater, setPinLater] = useState(() => localStorage.getItem("fs-pin-later") === "1");
@@ -103,7 +103,9 @@ export default function MyStores() {
                   <div><h3 style={{ margin: 0, fontSize: 16 }}>{s.name}</h3><div className="code num">{s.store_code} · {t("lastInspection")} {df(s.last_date)}</div></div>
                   <StatusPill s={s.status} />
                 </div>
-                {b ? <div className="eq num">{([["p6", b.p6_qty], ["co2", b.co2_qty], ["fs", b.fs_qty], ["hc", b.hc_total]] as const).map(([c, q]) => <span key={c} title={t(`eq_${c}`)}><EqIcon code={c} size={16} />{nf(q)}</span>)}</div>
+                {b ? <div className="eq num">{([["p6", b.p6_qty], ["co2", b.co2_qty], ["fs", b.fs_qty], ["hc", b.hc_total]] as const).map(([c, q]) => <span key={c} title={t(`eq_${c}`)}><EqIcon code={c} size={16} />{nf(q)}</span>)}
+                  {(sItems.data ?? []).filter((i) => i.store_code === s.store_code && i.qty > 0 && eqm.types.some((x) => x.code === i.type_code && x.active)).map((i) => (
+                    <span key={i.type_code} title={eqm.name(i.type_code)}><EqIcon code={i.type_code} icon={eqm.icon(i.type_code)} size={16} />{eqm.types.find((x) => x.code === i.type_code)?.kind === "check" ? "✓" : nf(i.qty)}</span>))}</div>
                   : <div className="code" style={{ color: "var(--alarm)" }}>{t("noBaseTech")}</div>}
                 {s.open_issues > 0 && <div className="code">{t("openIssues")}: {nf(s.open_issues)}</div>}
                 <button className={`btn lg ${done || queued ? "" : "pri"}`} disabled={done || queued || !b} onClick={() => nav(`/tech/inspect/${encodeURIComponent(s.store_code)}`)}>

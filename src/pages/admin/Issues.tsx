@@ -1,10 +1,10 @@
 import { useState } from "react";
 import { Shell } from "../../components/Shell";
-import { Empty, ErrorBox, Field, Kpi, Loading, Modal, Pager, useErrorToast, useToast } from "../../components/ui";
+import { Empty, ErrorBox, Field, Kpi, Loading, Modal, Pager, useConfirm, useErrorToast, useToast } from "../../components/ui";
 import { InspectionDetail } from "../../components/InspectionDetail";
-import { EqIcon } from "../../components/EqIcon";
+import { EqIcon, useEq } from "../../components/EqIcon";
 import { Icon } from "../../components/icons";
-import { PAGE, useDashboard, useIssueEvents, useIssues, useStaff, useUpdateIssue, useZones } from "../../lib/api";
+import { PAGE, rpc, useInvalidate, useDashboard, useIssueEvents, useIssues, useStaff, useUpdateIssue, useZones } from "../../lib/api";
 import { useI18n, type TKey } from "../../lib/i18n";
 import type { Issue, IssueStatus, Priority } from "../../lib/types";
 
@@ -14,6 +14,11 @@ export default function Issues() {
   const { t, nf, df, lang } = useI18n();
   const [f, setF] = useState({ status: "active", priority: "", zone: "", page: 0 });
   const list = useIssues(f); const staff = useStaff(); const zones = useZones(); const dash = useDashboard(null);
+  const eqm = useEq(); const inv = useInvalidate(); const toast = useToast(); const toastErr = useErrorToast(); const { ask, node } = useConfirm();
+  async function removeIssue(i: Issue) {
+    if (!(await ask(`${t("deleteConfirm")} ${i.issue_code}؟`, true))) return;
+    try { await rpc("admin_delete_issue", { p_id: i.id }); await inv("issues", "dashboard", "store-status"); toast(t("deleted"), "ok"); } catch (e) { toastErr(e); }
+  }
   const [act, setAct] = useState<Act | null>(null); const [ins, setIns] = useState<string | null>(null); const [hist, setHist] = useState<Issue | null>(null);
   const name = (id: string | null) => staff.data?.find((s) => s.id === id)?.full_name ?? "—";
   const set = (k: string, v: string) => setF({ ...f, [k]: v, page: 0 });
@@ -44,9 +49,9 @@ export default function Issues() {
         <section className="card glass">
           {list.data.rows.map((i) => (
             <div className="issue" key={i.id}>
-              <div className={`prio pr-${i.priority}`} title={`${t(`eq_${i.equipment}` as TKey)} · ${t(`pr_${i.priority}` as TKey)}`}><EqIcon code={i.equipment} size={22} /></div>
+              <div className={`prio pr-${i.priority}`} title={`${eqm.name(i.equipment)} · ${t(`pr_${i.priority}` as TKey)}`}><EqIcon code={i.equipment} icon={eqm.icon(i.equipment)} size={22} /></div>
               <div>
-                <h4>{t(`eq_${i.equipment}` as TKey)} — {i.stores?.name} <span className="code num">({i.store_code})</span></h4>
+                <h4>{eqm.name(i.equipment)} — {i.stores?.name} <span className="code num">({i.store_code})</span></h4>
                 <p>{i.description}</p>
                 <div className="meta num"><span className={`pill ${i.priority === "critical" ? "p-bad" : i.priority === "low" ? "p-none" : "p-warn"}`}>{t(`pr_${i.priority}` as TKey)}</span> <b>{t(`is_${i.status}` as TKey)}</b> · {i.issue_code} · {t("createdAt")} {df(i.created_at)}
                   {i.assigned_to && <> · {t("assignTo")} {name(i.assigned_to)}</>}
@@ -61,6 +66,7 @@ export default function Issues() {
                 {!["resolved", "closed"].includes(i.status) && <button className="btn wine" onClick={() => setAct({ issue: i, to: "resolved" })}>{t("resolve")}</button>}
                 {i.status === "resolved" && <button className="btn" onClick={() => setAct({ issue: i, to: "closed" })}>{t("closeIssue")}</button>}
                 {["resolved", "closed"].includes(i.status) && <button className="btn" onClick={() => setAct({ issue: i, to: "open" })}>{t("reopen")}</button>}
+                <button className="iconbtn" onClick={() => removeIssue(i)} title={t("delete")} aria-label={t("delete")} style={{ color: "var(--alarm)" }}><Icon name="x" size={17} /></button>
               </div>
             </div>
           ))}
@@ -68,6 +74,7 @@ export default function Issues() {
         </section>
       )}
       <p className="code" style={{ textAlign: "center" }}>{list.data ? `${nf(list.data.count)}` : ""}</p>
+      {node}
       {act && <ActDialog act={act} onClose={() => setAct(null)} />}
       {ins && <InspectionDetail id={ins} onClose={() => setIns(null)} />}
       {hist && <History issue={hist} onClose={() => setHist(null)} />}

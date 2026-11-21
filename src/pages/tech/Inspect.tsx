@@ -2,7 +2,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { Shell } from "../../components/Shell";
 import { ErrorBox, Loading } from "../../components/ui";
-import { useEquipmentTypes, useInvalidate, useSettings, useStoreEquipment, useStoreStatus } from "../../lib/api";
+import { useEquipmentTypes, useInvalidate, useSettings, useStoreEquipment, useStoreItems, useStoreStatus } from "../../lib/api";
 import { useAuth } from "../../lib/auth";
 import { useI18n, type TKey } from "../../lib/i18n";
 import { drafts, enqueue, submitPayload, type InspectionPayload, type SubmitResult } from "../../lib/offline";
@@ -34,8 +34,14 @@ export default function Inspect() {
   const store = st.data?.find((s) => s.store_code === code);
   const base = eq.data?.find((e) => e.store_code === code);
   const active = useMemo(() => new Set((types.data ?? []).filter((x) => x.active).map((x) => x.code)), [types.data]);
-  const typeName = (c: EqCode) => { const x = types.data?.find((y) => y.code === c); return x ? (lang === "ar" ? x.name_ar : x.name_en) : t(`eq_${c}` as TKey); };
-  const steps = useMemo(() => [...(["p6", "co2", "fs", "hc", "al", "fp"] as EqCode[]).filter((c) => active.has(c)), "rev" as const], [active]);
+  const storeItems = useStoreItems();
+  // custom equipment (added by admins) present at this store, in admin-defined order
+  const customs = useMemo(() => (types.data ?? []).filter((x) => x.active && (x.kind === "count" || x.kind === "check"))
+    .map((x) => ({ type: x, qty: storeItems.data?.find((i) => i.store_code === code && i.type_code === x.code)?.qty ?? 0 }))
+    .filter((c) => c.qty > 0), [types.data, storeItems.data, code]);
+  const customOf = (c: string) => customs.find((x) => x.type.code === c);
+  const typeName = (c: string) => { const x = types.data?.find((y) => y.code === c); return x ? (lang === "ar" ? x.name_ar : x.name_en) : t(`eq_${c}` as TKey); };
+  const steps = useMemo<string[]>(() => [...(["p6", "co2", "fs", "hc", "al", "fp"] as EqCode[]).filter((c) => active.has(c)), ...customs.map((c) => c.type.code), "rev"], [active, customs]);
   const requireRemarks = settings.data?.require_remarks_on_issue === true;
   const isAdmin = staff?.role === "admin";
   const doneThisWeek = store?.status === "ok" || store?.status === "issues";
@@ -48,7 +54,7 @@ export default function Inspect() {
   const loaded = useRef(false);
 
   useEffect(() => {
-    if (loaded.current || !staff || !base) return;
+    if (loaded.current || !staff || !base || !storeItems.data || !types.data) return;
     loaded.current = true;
     drafts.get(staff.id, code).then((d) => {
       if (d) { setP(d.payload); setStep(Math.min(d.step, 6)); return; }
@@ -58,9 +64,10 @@ export default function Inspect() {
         hc: { ok: base.hc_total, hose: "good", valve: "good", glass: "good" },
         al: { system: "ok", battery: "good", detectors: "good", mcp: "good", sounders: "working" },
         fp: { available: false, running: "na", tested: "na" },
+        items: Object.fromEntries(customs.map((c) => [c.type.code, c.type.kind === "count" ? { good: c.qty, dmg: 0, miss: 0 } : { ok: true }])),
       });
     });
-  }, [staff, base, code]);
+  }, [staff, base, code, storeItems.data, types.data]);
 
   // autosave draft on every change
   useEffect(() => { if (p && staff && !result) drafts.save({ payload: p, step, owner: staff.id, updatedAt: Date.now() }); }, [p, step]);
@@ -75,7 +82,15 @@ export default function Inspect() {
   const cur = steps[step];
   const upd = (patch: Partial<InspectionPayload>) => { setErr(""); setP({ ...p, ...patch }); };
   const sumBad = (k: "p6" | "co2" | "fs") => p[k].good + p[k].dmg + p[k].miss !== qtyOf(k);
-  const hasIssue = (k: EqCode): boolean => {
+  const item = (c: string) => p.items?.[c] ?? {};
+  const setItem = (c: string, patch: Record<string, unknown>) => upd({ items: { ...(p.items ?? {}), [c]: { ...item(c), ...patch } } });
+  const customBad = (c: string) => { const x = customOf(c); const v = item(c); return !!x && x.type.kind === "count" && (v.good ?? 0) + (v.dmg ?? 0) + (v.miss ?? 0) !== x.qty; };
+  const hasIssue = (k: string): boolean => {
+    const cu = customOf(k);
+    if (cu) { const v = item(k); return cu.type.kind === "count" ? (v.dmg ?? 0) + (v.miss ?? 0) > 0 : v.ok === false; }
+    return builtinIssue(k as EqCode);
+  };
+  const builtinIssue = (k: EqCode): boolean => {
     switch (k) {
       case "p6": case "co2": case "fs": return p[k].dmg + p[k].miss > 0;
       case "hc": return base.hc_total > 0 && (p.hc.ok < base.hc_total || p.hc.hose !== "good" || p.hc.valve !== "good" || p.hc.glass !== "good");
@@ -83,12 +98,17 @@ export default function Inspect() {
       case "fp": return p.fp.available && (p.fp.running === "not_running" || p.fp.tested === "not_tested");
     }
   };
-  const issues = steps.filter((s): s is EqCode => s !== "rev" && hasIssue(s));
+  const issues = steps.filter((s) => s !== "rev" && hasIssue(s));
 
-  function validate(k: (typeof steps)[number]): string {
+  function validate(k: string): string {
+    if (customOf(k)) {
+      if (customBad(k)) return `${t("tallyBad")} ${nf(customOf(k)!.qty)}`;
+      if (requireRemarks && hasIssue(k) && !(item(k).rmk ?? "").trim()) return t("remarksRequired");
+      return "";
+    }
     if (k === "p6" || k === "co2" || k === "fs") { if (sumBad(k)) return `${t("tallyBad")} ${nf(qtyOf(k))}`; }
     if (k === "fp" && p!.fp.available && (p!.fp.running === "na" || p!.fp.tested === "na")) return errorText(new Error("MISSING_FIELD"), lang);
-    if (k !== "rev" && requireRemarks && hasIssue(k) && !(p![k].rmk ?? "").trim()) return t("remarksRequired");
+    if (k !== "rev" && requireRemarks && hasIssue(k) && !((p![k as EqCode] as { rmk?: string }).rmk ?? "").trim()) return t("remarksRequired");
     return "";
   }
 
@@ -188,6 +208,33 @@ export default function Inspect() {
       {Chips({ group: "al", field: "detectors", label: t("detectors") })}{Chips({ group: "al", field: "mcp", label: t("mcp") })}{Chips({ group: "al", field: "sounders", label: t("sounders") })}
       {Remarks({ k: "al" })}
     </>);
+  } else if (customOf(cur)) {
+    const cu = customOf(cur)!; const v = item(cur);
+    body = cu.type.kind === "count" ? (<>
+      <div className="base"><span>{t("installed")}</span><b className="num">{nf(cu.qty)}</b></div>
+      {(["good", "dmg", "miss"] as const).map((f) => (
+        <div className="counter" key={f}><label><i className={`dot ${f === "good" ? "d-ok" : f === "dmg" ? "d-warn" : "d-bad"}`} />{t(f)}</label>
+          <div className="stepper">
+            <button type="button" aria-label="−" onClick={() => setItem(cur, { [f]: Math.max(0, (v[f] ?? 0) - 1) })}>−</button>
+            <input className="num" inputMode="numeric" aria-label={t(f)} value={v[f] ?? 0} onChange={(e) => setItem(cur, { [f]: Math.min(cu.qty, Math.max(0, Math.trunc(Number(e.target.value.replace(/[^\d]/g, "")) || 0))) })} />
+            <button type="button" aria-label="+" onClick={() => setItem(cur, { [f]: Math.min(cu.qty, (v[f] ?? 0) + 1) })}>+</button>
+          </div>
+        </div>
+      ))}
+      <div className={`tally ${customBad(cur) ? "bad" : "ok"}`} aria-live="polite">
+        {customBad(cur) ? `${t("tallyBad")} ${nf(cu.qty)} — ${t("now")} ${nf((v.good ?? 0) + (v.dmg ?? 0) + (v.miss ?? 0))}` : `✓ ${t("tallyOk")} (${nf(cu.qty)})`}
+      </div>
+    </>) : (<>
+      <div className="q">{typeName(cur)}</div>
+      <div className="chips" role="radiogroup">
+        <button type="button" role="radio" aria-checked={v.ok !== false} aria-pressed={v.ok !== false} className="chip c-ok" onClick={() => setItem(cur, { ok: true })}>{t("isOk")}</button>
+        <button type="button" role="radio" aria-checked={v.ok === false} aria-pressed={v.ok === false} className="chip c-bad" onClick={() => setItem(cur, { ok: false })}>{t("hasProblem")}</button>
+      </div>
+    </>);
+    body = (<>{body}
+      <div className="q">{t("remarks")}{requireRemarks && hasIssue(cur) ? " *" : ""}</div>
+      <textarea className="input" maxLength={1000} value={v.rmk ?? ""} onChange={(e) => setItem(cur, { rmk: e.target.value })} />
+    </>);
   } else if (cur === "fp") {
     body = (<>
       <div className="q">{t("fpHas")}</div>
@@ -202,10 +249,10 @@ export default function Inspect() {
   } else {
     body = (<>
       <div className="rev">
-        {steps.filter((s): s is EqCode => s !== "rev").map((s) => (
+        {steps.filter((s) => s !== "rev").map((s) => (
           <button key={s} type="button" className="r" onClick={() => setStep(steps.indexOf(s))} style={{ textAlign: "start" }}>
-            <span style={{ display: "inline-flex", gap: 10, alignItems: "center" }}><EqIcon code={s} size={20} />{typeName(s)}</span>
-            <span className={`pill ${hasIssue(s) ? "p-warn" : "p-ok"}`}>{s === "p6" || s === "co2" || s === "fs" ? `${nf(p[s].good)}/${nf(qtyOf(s))}` : s === "hc" ? `${nf(p.hc.ok)}/${nf(base.hc_total)}` : t(hasIssue(s) ? "ov_warn" : "ov_ok")}</span>
+            <span style={{ display: "inline-flex", gap: 10, alignItems: "center" }}><EqIcon code={s} icon={customOf(s)?.type.icon} size={20} />{typeName(s)}</span>
+            <span className={`pill ${hasIssue(s) ? "p-warn" : "p-ok"}`}>{s === "p6" || s === "co2" || s === "fs" ? `${nf(p[s].good)}/${nf(qtyOf(s))}` : s === "hc" ? `${nf(p.hc.ok)}/${nf(base.hc_total)}` : customOf(s)?.type.kind === "count" ? `${nf(item(s).good ?? 0)}/${nf(customOf(s)!.qty)}` : t(hasIssue(s) ? "ov_warn" : "ov_ok")}</span>
           </button>
         ))}
       </div>
@@ -219,7 +266,7 @@ export default function Inspect() {
     </>);
   }
 
-  const stepName = (s: (typeof steps)[number]) => (s === "rev" ? t("review") : typeName(s));
+  const stepName = (s: string) => (s === "rev" ? t("review") : typeName(s));
   return (
     <Shell title={store.name}>
       {!navigator.onLine && <div className="banner warn">{t("offline")}</div>}
@@ -227,13 +274,13 @@ export default function Inspect() {
         <ol className="steps glass">
           {steps.map((s, i) => (
             <li key={s} className={i < step ? "done" : i === step ? "cur" : ""}>
-              <span className="n num">{i < step ? "✓" : s === "rev" ? nf(i + 1) : <EqIcon code={s} size={17} />}</span>{stepName(s)}
+              <span className="n num">{i < step ? "✓" : s === "rev" ? nf(i + 1) : <EqIcon code={s} icon={customOf(s)?.type.icon} size={17} />}</span>{stepName(s)}
             </li>
           ))}
         </ol>
         <section className="panel glass">
           <div className="mprog" aria-hidden="true">{steps.map((s, i) => <i key={s} className={i < step ? "done" : i === step ? "cur" : ""} />)}</div>
-          <h2 style={{ display: "flex", alignItems: "center", gap: 12 }}>{cur !== "rev" && <span className="eqicon-badge" style={{ background: "var(--hero)" }}><EqIcon code={cur} size={24} /></span>}{stepName(cur)}</h2>
+          <h2 style={{ display: "flex", alignItems: "center", gap: 12 }}>{cur !== "rev" && <span className="eqicon-badge" style={{ background: "var(--hero)" }}><EqIcon code={cur} icon={customOf(cur)?.type.icon} size={24} /></span>}{stepName(cur)}</h2>
           <p className="muted num" style={{ margin: "0 0 16px" }}>{store.name} · {store.store_code} · {nf(step + 1)}/{nf(steps.length)}</p>
           {body}
           {err && <div className="banner bad" role="alert" style={{ marginTop: 14 }}>{err}</div>}
