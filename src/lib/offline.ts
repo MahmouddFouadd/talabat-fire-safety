@@ -46,7 +46,14 @@ export async function submitPayload(payload: InspectionPayload): Promise<SubmitR
   return data as SubmitResult;
 }
 
-export async function flushOutbox(owner: string): Promise<{ sent: number; failed: number }> {
+// One sync at a time: the "online" event, the page mount and the Sync button can fire together.
+let running: Promise<{ sent: number; failed: number }> | null = null;
+export function flushOutbox(owner: string): Promise<{ sent: number; failed: number }> {
+  if (!running) running = flushOnce(owner).finally(() => { running = null; });
+  return running;
+}
+
+async function flushOnce(owner: string): Promise<{ sent: number; failed: number }> {
   let sent = 0, failed = 0;
   if (!navigator.onLine) return { sent, failed };
   for (const item of await listOutbox(owner)) {

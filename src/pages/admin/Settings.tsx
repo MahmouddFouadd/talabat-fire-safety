@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { Shell } from "../../components/Shell";
 import { ErrorBox, Field, Loading, useErrorToast, useToast } from "../../components/ui";
 import { Icon } from "../../components/icons";
-import { rpc, useEquipmentTypes, useInvalidate, useSettings } from "../../lib/api";
+import { fetchAll, logEvent, rpc, useEquipmentTypes, useInvalidate, useSettings } from "../../lib/api";
 import { supabase } from "../../lib/supabase";
 import { useI18n } from "../../lib/i18n";
 import { download } from "../../lib/csv";
@@ -35,13 +35,18 @@ export default function Settings() {
   async function backup() {
     setBusy(true);
     try {
-      const tables = ["zones", "staff", "stores", "store_equipment", "equipment_types", "app_settings", "inspections", "issues", "issue_events"];
+      const tables: [string, string][] = [["zones", "id"], ["staff", "id"], ["stores", "store_code"], ["store_equipment", "store_code"],
+        ["equipment_types", "code"], ["store_items", "store_code,type_code"], ["app_settings", "key"], ["inspections", "id"],
+        ["inspection_items", "inspection_id,type_code"], ["issues", "id"], ["issue_events", "id"]];
       const out: Record<string, unknown> = { exported_at: new Date().toISOString() };
-      for (const tb of tables) {
-        const { data, error } = await supabase.from(tb).select("*").limit(50000);
-        if (error) throw error;
-        out[tb] = data;
+      const counts: Record<string, number> = {};
+      for (const [tb, key] of tables) {
+        // stable order so paging never skips or repeats rows
+        const rows = await fetchAll<unknown>((a, z) => key.split(",").reduce((b, k) => b.order(k), supabase.from(tb).select("*")).range(a, z));
+        out[tb] = rows; counts[tb] = rows.length;
       }
+      out.row_counts = counts;
+      await logEvent("export_backup", counts);
       download(`fire-safety-backup-${new Date().toISOString().slice(0, 10)}.json`, JSON.stringify(out, null, 1), "application/json");
     } catch (e) { toastErr(e); }
     setBusy(false);

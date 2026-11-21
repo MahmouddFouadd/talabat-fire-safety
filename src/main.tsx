@@ -12,6 +12,19 @@ import "./index.css";
 const theme = localStorage.getItem("fs-theme");
 if (theme) document.documentElement.setAttribute("data-theme", theme);
 
+// After a new deploy, a page opened earlier may ask for an old JS chunk that no longer exists (404).
+// Reload once to pick up the new index.html instead of showing a broken screen. Drafts live in IndexedDB, so nothing is lost.
+window.addEventListener("vite:preloadError", (e) => {
+  const KEY = "fs-chunk-reload";
+  try {
+    const last = Number(sessionStorage.getItem(KEY) || 0);
+    if (Date.now() - last < 30_000) return;           // already tried: let the error show instead of looping
+    sessionStorage.setItem(KEY, String(Date.now()));
+  } catch { /* storage blocked: still try once */ }
+  e.preventDefault();
+  window.location.reload();
+});
+
 const qc = new QueryClient({ defaultOptions: { queries: { staleTime: 30_000, refetchOnWindowFocus: false, retry: 1 } } });
 
 if (Capacitor.isNativePlatform()) {

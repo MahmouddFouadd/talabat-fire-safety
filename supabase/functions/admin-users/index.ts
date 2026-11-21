@@ -1,5 +1,5 @@
 // admin-users — the only place the service-role key is used.
-// Actions (admin only): create_login, reset_password, set_active.
+// Actions (admin only): create_login, reset_password, set_active, delete, sign_out_everywhere.
 // The service-role key is injected by Supabase at runtime (SUPABASE_SERVICE_ROLE_KEY); it never reaches the app.
 import { createClient } from "jsr:@supabase/supabase-js@2.45.4";
 
@@ -49,6 +49,13 @@ Deno.serve(async (req) => {
   const { data: target } = await service.from("staff").select("id, username, full_name, role, active, auth_user_id").eq("id", staffId).maybeSingle();
   if (!target) return json({ error: "STAFF_NOT_FOUND" }, 404, origin);
 
+  // End every session of the target login (refresh tokens). Access tokens still expire on their own (≤ 1 h),
+  // but every table/RPC also checks staff.active, so a deactivated user loses access at once.
+  const endSessions = async (authId: string | null) => {
+    if (!authId) return 0;
+    const { data, error } = await service.rpc("revoke_user_sessions", { p_user: authId });
+    return error ? -1 : Number(data ?? 0);
+  };
   const audit = (act: string, detail: Record<string, unknown>) =>
     service.from("audit_logs").insert({ actor_auth: who.user.id, actor_staff: caller.id, action: act, entity: "auth", entity_id: target.id, detail });
 
@@ -64,7 +71,7 @@ Deno.serve(async (req) => {
         email: `${username}@${LOGIN_DOMAIN}`, password: body.password, email_confirm: true,
         user_metadata: { staff_id: target.id, must_change_password: true },
       });
-      if (error || !created.user) return json({ error: "CREATE_FAILED", detail: error?.message }, 400, origin);
+      if (error || !created.user) return json({ error: "CREATE_FAILED" }, 400, origin);
       const { error: linkErr } = await service.from("staff").update({ auth_user_id: created.user.id, username }).eq("id", target.id);
       if (linkErr) { await service.auth.admin.deleteUser(created.user.id); return json({ error: "LINK_FAILED" }, 500, origin); }
       await audit("create_login", { username });
@@ -78,7 +85,8 @@ Deno.serve(async (req) => {
         password: body.password, user_metadata: { staff_id: target.id, must_change_password: true },
       });
       if (error) return json({ error: "RESET_FAILED" }, 400, origin);
-      await audit("reset_password", {});
+      const ended = await endSessions(target.auth_user_id);
+      await audit("reset_password", { sessions_ended: ended });
       return json({ ok: true }, 200, origin);
     }
 
@@ -90,7 +98,8 @@ Deno.serve(async (req) => {
       if (target.auth_user_id) {
         await service.auth.admin.updateUserById(target.auth_user_id, { ban_duration: active ? "none" : "876000h" });
       }
-      await audit(active ? "activate_user" : "deactivate_user", {});
+      const ended = active ? 0 : await endSessions(target.auth_user_id);
+      await audit(active ? "activate_user" : "deactivate_user", active ? {} : { sessions_ended: ended });
       return json({ ok: true }, 200, origin);
     }
 
@@ -105,9 +114,16 @@ Deno.serve(async (req) => {
       await service.from("stores").update({ assigned_tech_id: null }).eq("assigned_tech_id", target.id);
       const { error } = await service.from("staff").delete().eq("id", target.id);
       if (error) return json({ error: "DELETE_FAILED" }, 400, origin);
-      if (target.auth_user_id) await service.auth.admin.deleteUser(target.auth_user_id).catch(() => undefined);
+      if (target.auth_user_id) { await endSessions(target.auth_user_id); await service.auth.admin.deleteUser(target.auth_user_id).catch(() => undefined); }
       await audit("delete_user", { name: target.full_name });
       return json({ ok: true }, 200, origin);
+    }
+
+    if (action === "sign_out_everywhere") {
+      if (!target.auth_user_id) return json({ error: "NO_LOGIN" }, 400, origin);
+      const ended = await endSessions(target.auth_user_id);
+      await audit("sign_out_everywhere", { sessions_ended: ended });
+      return json({ ok: ended >= 0, sessions_ended: ended }, ended >= 0 ? 200 : 500, origin);
     }
 
     return json({ error: "UNKNOWN_ACTION" }, 400, origin);
