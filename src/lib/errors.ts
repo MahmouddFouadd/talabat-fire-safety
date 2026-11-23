@@ -31,6 +31,18 @@ const MSG: Record<string, [string, string]> = {
   "23514": ["فيه قيمة خارج الحدود المسموحة.", "A value is outside the allowed range."],
   "42501": ["مش مسموح لك تعمل العملية دي.", "You are not allowed to do this."],
   NETWORK: ["مفيش اتصال بالإنترنت.", "No internet connection."],
+  SESSION_EXPIRED: ["انتهت الجلسة. سجّل الدخول مرة أخرى.", "Your session has ended. Please sign in again."],
+  NOT_AUTHENTICATED: ["انتهت الجلسة. سجّل الدخول مرة أخرى.", "Your session has ended. Please sign in again."],
+  EMAIL_EXISTS: ["اسم المستخدم ده عليه حساب دخول قديم. اختار اسم مستخدم تاني.", "That username already has an (old) login. Choose another username."],
+  CREATE_FAILED: ["مقدرناش ننشئ حساب الدخول.", "Could not create the login."],
+  LINK_FAILED: ["اتعمل الحساب بس مقدرناش نربطه بالموظف. حاول تاني.", "The login could not be linked to the staff member. Try again."],
+  RESET_FAILED: ["مقدرناش نغيّر كلمة المرور.", "Could not reset the password."],
+  NO_LOGIN: ["المستخدم ده معندوش حساب دخول.", "This user has no login."],
+  STAFF_NOT_FOUND: ["الموظف مش موجود.", "Staff member not found."],
+  INVALID_STAFF_ID: ["الموظف مش موجود.", "Staff member not found."],
+  UPDATE_FAILED: ["مقدرناش نحفظ التغيير.", "Could not save the change."],
+  DELETE_FAILED: ["مقدرناش نمسح.", "Could not delete."],
+  SERVER_ERROR: ["حصل خطأ في السيرفر. حاول تاني.", "Server error. Try again."],
 };
 
 export function errorCode(e: unknown): string {
@@ -46,6 +58,9 @@ export function errorCode(e: unknown): string {
 export function errorText(e: unknown, lang: Lang): string {
   const code = errorCode(e);
   const m = MSG[code];
-  if (m) return m[lang === "ar" ? 0 : 1];
-  return lang === "ar" ? "حصل خطأ. حاول تاني." : "Something went wrong. Try again.";
+  const detail = (e as { detail?: string } | null)?.detail;
+  if (m) return m[lang === "ar" ? 0 : 1] + (detail && /_FAILED$/.test(code) ? ` (${detail})` : "");
+  // show the code so an unexpected failure can be reported instead of guessed at
+  const ref = code && code !== "UNKNOWN" ? ` (${code.slice(0, 60)})` : "";
+  return (lang === "ar" ? "حصل خطأ. حاول تاني." : "Something went wrong. Try again.") + ref;
 }

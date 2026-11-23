@@ -1,5 +1,6 @@
 import { useMutation, useQuery, useQueryClient, keepPreviousData } from "@tanstack/react-query";
 import { supabase } from "./supabase";
+import { reportSessionExpired } from "./auth";
 import type { InspectionItem, StoreItem, AuditRow, Dashboard, EquipmentType, Inspection, Issue, IssueStatus, Staff, Store, StoreEquipment, StoreStatusRow, Zone } from "./types";
 
 async function q<T>(p: PromiseLike<{ data: unknown; error: unknown; count?: number | null }>): Promise<T> {
@@ -145,12 +146,46 @@ export function useUpdateIssue() {
   });
 }
 
-export async function adminUsers(body: Record<string, unknown>) {
-  const { data, error } = await supabase.functions.invoke("admin-users", { body });
-  if (error) {
-    let code = "UNKNOWN";
-    try { code = (await (error as { context?: Response }).context?.json())?.error ?? code; } catch { /* ignore */ }
-    throw new Error(code);
+/** Returns a valid access token, renewing it first when it is expired or about to expire. */
+async function freshAccessToken(force = false): Promise<string | null> {
+  const { data } = await supabase.auth.getSession();
+  const s = data.session;
+  if (!s) return null;
+  const expiresSoon = (s.expires_at ?? 0) * 1000 - Date.now() < 60_000;
+  if (!force && !expiresSoon) return s.access_token;
+  const { data: r, error } = await supabase.auth.refreshSession();
+  if (error || !r.session) {
+    // A network failure is not an expired session — only give up on a real auth rejection.
+    if (error && /fetch|network|timed? ?out|abort/i.test(error.message ?? "")) throw new Error("NETWORK");
+    return null;
   }
-  return data;
+  return r.session.access_token;
+}
+
+async function readFnError(error: unknown): Promise<{ status: number; code: string; detail?: string }> {
+  const res = (error as { context?: Response }).context;
+  if (!(res instanceof Response)) {
+    const name = (error as { name?: string }).name ?? "";
+    return { status: 0, code: name === "FunctionsFetchError" ? "NETWORK" : "UNKNOWN", detail: (error as Error).message };
+  }
+  let body: Record<string, unknown> = {};
+  try { body = await res.clone().json(); } catch { /* not JSON */ }
+  // our function returns {error}; the Supabase gateway returns {code, message} / {msg} (e.g. "Invalid JWT")
+  const code = typeof body.error === "string" ? body.error : "";
+  const detail = [body.detail, body.message, body.msg].find((v) => typeof v === "string") as string | undefined;
+  return { status: res.status, code: code || (res.status === 401 ? "NOT_AUTHENTICATED" : `HTTP_${res.status}`), detail };
+}
+
+export async function adminUsers(body: Record<string, unknown>) {
+  for (let attempt = 0; attempt < 2; attempt++) {
+    const token = await freshAccessToken(attempt > 0);
+    if (!token) { reportSessionExpired(); throw new Error("SESSION_EXPIRED"); }
+    const { data, error } = await supabase.functions.invoke("admin-users", { body, headers: { Authorization: `Bearer ${token}` } });
+    if (!error) return data;
+    const e = await readFnError(error);
+    if (e.status === 401 && attempt === 0) continue;          // token rejected → renew once and retry
+    if (e.status === 401) { reportSessionExpired(); throw new Error("SESSION_EXPIRED"); }
+    throw Object.assign(new Error(e.code), { detail: e.detail, status: e.status });
+  }
+  throw new Error("SESSION_EXPIRED");
 }

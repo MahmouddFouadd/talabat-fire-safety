@@ -1,7 +1,11 @@
 project_id = "pwijwlcqtjoaqxjnygwh"
 
+# The function verifies the caller itself (auth.getUser + active admin check) before doing anything.
+# Gateway verification is off so an expired/rotated JWT reaches the function and comes back as our
+# own NOT_AUTHENTICATED (the app then renews the session and retries) instead of an opaque gateway error,
+# and so it keeps working with Supabase's asymmetric JWT signing keys.
 [functions.admin-users]
-verify_jwt = true
+verify_jwt = false
 
 # anonymous on purpose: this IS the sign-in endpoint (PIN checked in the database with lockout)
 [functions.pin-login]
