@@ -76,7 +76,11 @@ Deno.serve(async (req) => {
         return json({ error: exists ? "EMAIL_EXISTS" : "CREATE_FAILED", detail: error?.message }, exists ? 409 : 400, origin);
       }
       const { error: linkErr } = await service.from("staff").update({ auth_user_id: created.user.id, username }).eq("id", target.id);
-      if (linkErr) { await service.auth.admin.deleteUser(created.user.id); return json({ error: "LINK_FAILED" }, 500, origin); }
+      if (linkErr) {
+        await service.auth.admin.deleteUser(created.user.id);
+        console.error("admin-users link", linkErr);
+        return json({ error: "LINK_FAILED", detail: linkErr.message }, 500, origin);
+      }
       await audit("create_login", { username });
       return json({ ok: true, username }, 200, origin);
     }
