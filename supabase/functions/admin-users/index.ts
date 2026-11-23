@@ -71,7 +71,10 @@ Deno.serve(async (req) => {
         email: `${username}@${LOGIN_DOMAIN}`, password: body.password, email_confirm: true,
         user_metadata: { staff_id: target.id, must_change_password: true },
       });
-      if (error || !created.user) return json({ error: "CREATE_FAILED" }, 400, origin);
+      if (error || !created.user) {
+        const exists = (error as { code?: string } | null)?.code === "email_exists" || /already (been )?registered|already exists/i.test(error?.message ?? "");
+        return json({ error: exists ? "EMAIL_EXISTS" : "CREATE_FAILED", detail: error?.message }, exists ? 409 : 400, origin);
+      }
       const { error: linkErr } = await service.from("staff").update({ auth_user_id: created.user.id, username }).eq("id", target.id);
       if (linkErr) { await service.auth.admin.deleteUser(created.user.id); return json({ error: "LINK_FAILED" }, 500, origin); }
       await audit("create_login", { username });
@@ -84,7 +87,7 @@ Deno.serve(async (req) => {
       const { error } = await service.auth.admin.updateUserById(target.auth_user_id, {
         password: body.password, user_metadata: { staff_id: target.id, must_change_password: true },
       });
-      if (error) return json({ error: "RESET_FAILED" }, 400, origin);
+      if (error) return json({ error: "RESET_FAILED", detail: error.message }, 400, origin);
       const ended = await endSessions(target.auth_user_id);
       await audit("reset_password", { sessions_ended: ended });
       return json({ ok: true }, 200, origin);
@@ -127,7 +130,8 @@ Deno.serve(async (req) => {
     }
 
     return json({ error: "UNKNOWN_ACTION" }, 400, origin);
-  } catch (_e) {
+  } catch (e) {
+    console.error("admin-users", action, e);
     return json({ error: "SERVER_ERROR" }, 500, origin);
   }
 });

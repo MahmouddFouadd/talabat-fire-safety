@@ -49,7 +49,7 @@ export function AuthLayout({ children }: { children: ReactNode }) {
 
 export default function Login() {
   const { t, lang } = useI18n();
-  const { signIn, signInWithPin, idleExpired } = useAuth();
+  const { signIn, signInWithPin, idleExpired, sessionExpired } = useAuth();
   const { data: ps } = usePublicSettings();
   // remember the number/username and the chosen method on this device (never the secret)
   const [mode, setMode] = useState<"password" | "pin">(() => (localStorage.getItem("fs-login-mode") as "pin") === "pin" ? "pin" : "password");
@@ -96,7 +96,7 @@ export default function Login() {
       <form className="box" onSubmit={submit} noValidate>
         <h2>{t("signIn")}</h2>
         <p className="sub">{msg}</p>
-        {idleExpired && <div className="banner info">{t("sessionEnded")}</div>}
+        {(idleExpired || sessionExpired) && <div className="banner info">{t(sessionExpired ? "sessionExpired" : "sessionEnded")}</div>}
         <div className="lseg" role="tablist" aria-label={t("signIn")}>
           <button type="button" role="tab" aria-selected={mode === "password"} onClick={() => switchMode("password")}>{t("byPassword")}</button>
           <button type="button" role="tab" aria-selected={mode === "pin"} onClick={() => switchMode("pin")}>{t("byPin")}</button>

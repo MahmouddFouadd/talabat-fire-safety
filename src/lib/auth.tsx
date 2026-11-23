@@ -10,6 +10,8 @@ interface AuthState {
   loading: boolean;
   mustChangePassword: boolean;
   idleExpired: boolean;
+  /** true when the session could not be renewed (refresh token revoked/expired) and the user was signed out */
+  sessionExpired: boolean;
   signIn: (username: string, password: string) => Promise<"ok" | "bad" | "rate" | "nostaff" | `db:${string}`>;
   signInWithPin: (identifier: string, pin: string) => Promise<"ok" | "bad" | "locked" | "nostaff" | "error">;
   signOut: () => Promise<void>;
@@ -41,12 +43,19 @@ async function loadStaff(uid: string): Promise<Staff | null> {
   return (data as Staff) ?? null;
 }
 
+/** Listeners outside React (api.ts) report a session that can no longer be renewed. */
+const expiredListeners = new Set<() => void>();
+export function reportSessionExpired() { expiredListeners.forEach((f) => f()); }
+
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [session, setSession] = useState<Session | null>(null);
   const [staff, setStaff] = useState<Staff | null>(null);
   const [loading, setLoading] = useState(true);
   const [idleExpired, setIdleExpired] = useState(false);
+  const [sessionExpired, setSessionExpired] = useState(false);
   const idleMinutes = useRef(480);
+  const staffRef = useRef<Staff | null>(null);
+  staffRef.current = staff;
 
   useEffect(() => {
     let alive = true;
@@ -62,11 +71,31 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     });
     // Never await Supabase calls inside this callback: supabase-js holds its auth lock while the
     // callback runs, so a query here deadlocks every later request (endless "Loading…").
-    const { data: sub } = supabase.auth.onAuthStateChange((_e, s) => {
+    //
+    // A token refresh (every ~hour, and on app resume) must NOT reload or clear the staff row:
+    // before, one failed/timed-out query during a refresh set staff=null and the app dropped to
+    // the login screen in the middle of work. Staff is cleared only when the session is gone, and
+    // a failed lookup keeps the staff we already have.
+    const { data: sub } = supabase.auth.onAuthStateChange((event, s) => {
       setSession(s);
-      setTimeout(async () => { setStaff(s ? await loadStaff(s.user.id) : null); }, 0);
+      if (!s) { setStaff(null); return; }
+      setSessionExpired(false);
+      const current = staffRef.current;
+      if (event === "TOKEN_REFRESHED" && current?.auth_user_id === s.user.id) return;
+      setTimeout(async () => {
+        const next = await loadStaff(s.user.id);
+        if (next) setStaff(next);
+        else if (!lastStaffError) setStaff(null);          // row really missing / deactivated
+        else if (staffRef.current?.auth_user_id !== s.user.id) setStaff(null); // different user, nothing to keep
+        // otherwise: transient error → keep the current staff
+      }, 0);
     });
-    return () => { alive = false; sub.subscription.unsubscribe(); };
+    const onExpired = () => {
+      setSessionExpired(true);
+      supabase.auth.signOut({ scope: "local" }).finally(() => setStaff(null));
+    };
+    expiredListeners.add(onExpired);
+    return () => { alive = false; sub.subscription.unsubscribe(); expiredListeners.delete(onExpired); };
   }, []);
 
   // Manual sign-out ends the session on every device (refresh tokens revoked server-side).
@@ -86,19 +115,21 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const KEY = "fs-last-activity";
     const last = Number(localStorage.getItem(KEY) || Date.now());
     if (Date.now() - last > idleMinutes.current * 60_000) { setIdleExpired(true); signOutLocal(); return; }
-    const bump = () => localStorage.setItem(KEY, String(Date.now()));
+    // throttled: touch, scroll and typing all count as activity (scrolling a long list is still "using" the app)
+    let lastBump = 0;
+    const bump = () => { const n = Date.now(); if (n - lastBump > 5_000) { lastBump = n; localStorage.setItem(KEY, String(n)); } };
     bump();
-    const events = ["pointerdown", "keydown", "visibilitychange"];
-    events.forEach((e) => window.addEventListener(e, bump, { passive: true }));
+    const events = ["pointerdown", "touchstart", "keydown", "input", "wheel", "scroll", "visibilitychange"];
+    events.forEach((e) => window.addEventListener(e, bump, { passive: true, capture: true }));
     const iv = window.setInterval(() => {
       const l = Number(localStorage.getItem(KEY) || Date.now());
       if (Date.now() - l > idleMinutes.current * 60_000) { setIdleExpired(true); signOutLocal(); }
     }, 60_000);
-    return () => { events.forEach((e) => window.removeEventListener(e, bump)); window.clearInterval(iv); };
+    return () => { events.forEach((e) => window.removeEventListener(e, bump, { capture: true })); window.clearInterval(iv); };
   }, [session, signOutLocal]);
 
   const signIn: AuthState["signIn"] = async (username, password) => {
-    setIdleExpired(false);
+    setIdleExpired(false); setSessionExpired(false);
     sessionStorage.setItem("fs-login-method", "password");
     const { data, error } = await supabase.auth.signInWithPassword({ email: await resolveEmail(username), password });
     if (error) return error.status === 429 ? "rate" : "bad";
@@ -110,7 +141,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   const signInWithPin: AuthState["signInWithPin"] = async (identifier, pin) => {
-    setIdleExpired(false);
+    setIdleExpired(false); setSessionExpired(false);
     const { data, error } = await supabase.functions.invoke("pin-login", { body: { identifier: latinDigits(identifier).trim(), pin: latinDigits(pin) } });
     if (error) {
       let code = "";
@@ -141,7 +172,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   // someone who signed in with a PIN is not forced to set a password (PIN-only use is allowed)
   const mustChangePassword = !!session?.user.user_metadata?.must_change_password && sessionStorage.getItem("fs-login-method") !== "pin";
 
-  return <Ctx.Provider value={{ session, staff, loading, mustChangePassword, idleExpired, signIn, signInWithPin, signOut, changePassword }}>{children}</Ctx.Provider>;
+  return <Ctx.Provider value={{ session, staff, loading, mustChangePassword, idleExpired, sessionExpired, signIn, signInWithPin, signOut, changePassword }}>{children}</Ctx.Provider>;
 }
 
 export function useAuth() {

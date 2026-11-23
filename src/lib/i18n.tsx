@@ -20,7 +20,7 @@ const ar = {
   pinBad: "البيانات أو الـ PIN غير صحيحين.", setPinFor: "تعيين PIN لـ", later: "بعدين", thisWeek: "الأسبوع ده", doneOf: "اتفحص", allStores: "الكل", showAll: "عرض الكل", signIn: "تسجيل الدخول", signingIn: "جارٍ التحقق…", signOut: "تسجيل الخروج",
   badLogin: "اسم المستخدم أو كلمة المرور غير صحيحة.", tooMany: "محاولات كثيرة. استنى دقيقة وجرّب تاني.", noStaff: "الحساب ده مش مربوط بأي موظف نشط. كلّم مدير النظام.",
   newPassword: "كلمة مرور جديدة", confirmPassword: "تأكيد كلمة المرور", setPassword: "حفظ كلمة المرور", mustChange: "لازم تغيّر كلمة المرور قبل ما تكمل.",
-  pwRule: "10 حروف على الأقل وفيها حرف ورقم.", pwMismatch: "كلمتين المرور مش متطابقين.", sessionEnded: "انتهت الجلسة بسبب عدم النشاط. سجّل دخولك تاني.",
+  pwRule: "10 حروف على الأقل وفيها حرف ورقم.", pwMismatch: "كلمتين المرور مش متطابقين.", sessionEnded: "انتهت الجلسة بسبب عدم النشاط. سجّل دخولك تاني.", sessionExpired: "انتهت الجلسة. سجّل الدخول مرة أخرى.",
   // nav
   dashboard: "لوحة المتابعة", stores: "الفروع", equipment: "إعداد المعدات", issues: "الأعطال", inspections: "سجل الفحوصات", reports: "حالة المعدات",
   zones: "المناطق", staff: "المستخدمين", settings: "الإعدادات", audit: "سجل التدقيق", myStores: "فروعي", history: "فحوصاتي", more: "المزيد",
@@ -103,7 +103,7 @@ const en: Dict = {
   pinBad: "Wrong details or PIN.", setPinFor: "Set PIN for", later: "Later", thisWeek: "This week", doneOf: "inspected", allStores: "All", showAll: "View all", signIn: "Sign in", signingIn: "Checking…", signOut: "Sign out",
   badLogin: "Wrong username or password.", tooMany: "Too many attempts. Wait a minute and try again.", noStaff: "This login is not linked to an active staff member. Contact the administrator.",
   newPassword: "New password", confirmPassword: "Confirm password", setPassword: "Save password", mustChange: "You need to change your password before continuing.",
-  pwRule: "At least 10 characters with a letter and a number.", pwMismatch: "Passwords don't match.", sessionEnded: "Session ended after inactivity. Sign in again.",
+  pwRule: "At least 10 characters with a letter and a number.", pwMismatch: "Passwords don't match.", sessionEnded: "Session ended after inactivity. Sign in again.", sessionExpired: "Your session has ended. Please sign in again.",
   dashboard: "Dashboard", stores: "Stores", equipment: "Equipment setup", issues: "Issues", inspections: "Inspection log", reports: "Equipment status",
   zones: "Zones", staff: "Users", settings: "Settings", audit: "Audit log", myStores: "My stores", history: "My inspections", more: "More",
   admin: "Admin", technician: "Technician",
