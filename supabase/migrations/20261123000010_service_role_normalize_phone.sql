@@ -1,0 +1,13 @@
+-- ═══════════════════════════════════════════════════════════════════
+-- Fix: "Create login" failed with LINK_FAILED for staff that have a mobile number.
+--
+-- staff_phone_norm_idx is an expression index on public.normalize_phone(phone).
+-- Whenever a staff row with a phone gets a new index entry (any UPDATE that changes an
+-- indexed column such as auth_user_id or username), Postgres evaluates normalize_phone()
+-- as the CURRENT role and checks EXECUTE on it. Earlier migrations revoked EXECUTE on all
+-- public functions from PUBLIC and granted normalize_phone only to `authenticated`, so the
+-- admin-users Edge Function (role service_role) got "permission denied for function
+-- normalize_phone" while linking the new login, and the login was rolled back.
+-- Safe to run more than once.
+-- ═══════════════════════════════════════════════════════════════════
+grant execute on function public.normalize_phone(text) to service_role;
